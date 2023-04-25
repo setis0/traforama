@@ -1,9 +1,8 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
 import IHttpConfig from "./IHttpConfig";
 import IHttpHeaders from "./IHttpHeaders";
-import IHttpInstance from "./IHttpInstance";
+import IHttpInstance, { validateStatus } from "./IHttpInstance";
 import IHttpResponse from "./IHttpResponse";
-
 
 
 type KeepAliveCallbackErr = (responseErr: { config: IHttpConfig, status?: number, }) => Promise<any>
@@ -26,18 +25,18 @@ export default class HttpInstance implements IHttpInstance {
         return axios(config);
     }
 
-    get(url: string, headers?: IHttpHeaders): Promise<IHttpResponse> {
-        return this.instance.get(url, { headers });
+    get(url: string, headers?: IHttpHeaders, validateStatus?: validateStatus): Promise<IHttpResponse> {
+        return this.instance.get(url, { validateStatus: validateStatus, headers });
     }
 
-    put(url: string, data?: any, headers?: IHttpHeaders): Promise<IHttpResponse> {
-        return this.instance.put(url, data, { headers });
+    put(url: string, data?: any, headers?: IHttpHeaders, validateStatus?: validateStatus): Promise<IHttpResponse> {
+        return this.instance.put(url, data, { validateStatus: validateStatus, headers });
     }
-    post(url: string, data?: any, headers?: IHttpHeaders): Promise<IHttpResponse> {
-        return this.instance.post(url, data, { headers });
+    post(url: string, data?: any, headers?: IHttpHeaders, validateStatus?: validateStatus): Promise<IHttpResponse> {
+        return this.instance.post(url, data, { validateStatus: validateStatus, headers });
     }
-    delete(url: string, headers?: IHttpHeaders): Promise<IHttpResponse> {
-        return this.instance.delete(url, { headers });
+    delete(url: string, headers?: IHttpHeaders, validateStatus?: validateStatus): Promise<IHttpResponse> {
+        return this.instance.delete(url, { validateStatus: validateStatus, headers });
     }
 
     keepAlive(callbackErr: KeepAliveCallbackErr): void {

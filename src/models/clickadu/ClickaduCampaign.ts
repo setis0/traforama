@@ -267,7 +267,7 @@ export default class ClickaduCampaign extends Campaign {
         };
         const responseSetPlacements = await this.conn.api_conn?.put(externalUrl, JSON.stringify(list), {
             headers
-        }).then((d: IHttpResponse) => d.data);
+        }, (status: number) => status === 400 || status === 200 || status === 302 || status === 500).then((d: IHttpResponse) => d.data);
         // new Logger({
         //     resp: responseSetPlacements.data,
         //     url,
