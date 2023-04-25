@@ -1,0 +1,39 @@
+{
+  "name": "library-clickadu",
+  "version": "1.0.0",
+  "description": "Library connection API AdNetwork clickadu",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prettier": "npx prettier --write src/* test/* example/*",
+    "tslint": "tslint -p tslint -p tsconfig.json",
+    "codestyle": "npm run prettier && npm run tslint",
+    "test": "jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run codestyle"
+    }
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.1",
+    "@types/node": "^18.16.0",
+    "docsify-cli": "^4.4.4",
+    "husky": "^8.0.3",
+    "jest": "^29.5.0",
+    "prettier": "^2.8.8",
+    "ts-jest": "^29.1.0",
+    "tslint": "^6.1.3",
+    "tslint-config-prettier": "^1.18.0",
+    "typedoc": "^0.24.6",
+    "typescript": "^5.0.4",
+    "axios": "^1.3.6"
+  }
+}
