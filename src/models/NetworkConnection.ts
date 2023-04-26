@@ -20,23 +20,6 @@ export default abstract class NetworkConnection {
     abstract open(): Promise<NetworkConnection>;
 
     /**
-     * Создание кампании
-     * @param campaign_data 
-     */
-    abstract createCampaign(campaign_data: ICampaign): Promise<ResponceApiNetwork>;
-
-    /**
-     * Списко кампаний
-     */
-    abstract listCampaigns(): Promise<Campaign>;
-
-    /**
-     * ПОлучение капании по id
-     * @param id 
-     */
-    abstract getCampaign(id: string): Promise<Campaign>
-
-    /**
      * Закрытие соединения
      */
     close() {

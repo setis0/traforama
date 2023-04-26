@@ -29,7 +29,7 @@ export default class RuCaptcha {
         while (promise === 'CAPCHA_NOT_READY') {
             promise = await new Promise((resolve, reject) => {
                 setTimeout(async () => {
-                    resolve(await axios.get(url + '?' + params).then((r: any) => r.data));
+                    resolve(await axios.get(url + '?' + params).then(r => r.data));
                 }, await_sec);
             });
         }

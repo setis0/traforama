@@ -75,29 +75,6 @@ export default class ClickaduConnection extends NetworkConnection {
         return this;
     }
 
-    /**
-     * Создание кампании
-     * @param campaign_data 
-     * @returns 
-     */
-    async createCampaign(campaign_data: ICampaign): Promise<ResponceApiNetwork> {
-        return await ClickaduCampaign.create(this, campaign_data)
-    }
-
-    /**
-     * Список кампаний
-     */
-    listCampaigns(): Promise<Campaign> {
-        throw new Error("Method not implemented.");
-    }
-
-    /**
-     * Получение кампании по id
-     * @param id 
-     */
-    async getCampaign(id: string): Promise<Campaign> {
-        return await ClickaduCampaign.fetch(this, new IdCampaign(id));
-    }
 
     /**
      * Поддержание соежинения в живых

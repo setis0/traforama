@@ -10,6 +10,8 @@ import StatusCampaign from "./StatusCampaign";
 import TargetUrlCampaign from "./TargetUrlCampaign";
 import TemplateIdCampaign from "./TemplateIdCampaign";
 import IdCampaign from "./IdCampaign";
+import ResponceApiNetwork from "./ResponceApiNetwork";
+import ScheduleCampaign from "./ScheduleCampaign";
 
 export default interface ICampaign {
     id?: IdCampaign;
@@ -21,6 +23,7 @@ export default interface ICampaign {
     // stage: StageCampaign,
     bid: BidCampaign,
     target_url: TargetUrlCampaign;
-    placements_data: PlacementCampaign,
+    placements_data: PlacementCampaign;
+    schedule: ScheduleCampaign;
     browser_version: BrowserVersionCampaign;
 }
