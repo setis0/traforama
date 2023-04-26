@@ -184,7 +184,6 @@ export default abstract class Campaign implements ICampaign {
 
     /**
      * Получить данные кампании из сети
-     * @param id 
      */
     abstract fetch(): Promise<ResponceApiNetwork>;
 

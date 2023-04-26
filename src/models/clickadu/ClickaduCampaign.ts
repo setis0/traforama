@@ -94,7 +94,7 @@ export default class ClickaduCampaign extends Campaign {
                 .setTargetUrl(target_url)
                 .setStatus(new StatusCampaign('moderation'))
 
-            return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', campaign: this })
+            return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this })
         } else {
             // LogPrinter.error(
             //     new Logger(responseCreateCampaign)
@@ -162,7 +162,7 @@ export default class ClickaduCampaign extends Campaign {
                 .setStatus(this.prepareStatus(fullDataCampaign))
                 .setSchedule(schedule)
 
-            return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', campaign: this })
+            return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this })
         } else {
             // LogPrinter.error(
             //     new Logger(responseCreateCampaign)
@@ -221,7 +221,7 @@ export default class ClickaduCampaign extends Campaign {
             .setSchedule(new ScheduleCampaign(targeting.timeTable.list))
             .setBrowserVersion(new BrowserVersionCampaign(is_old_ver ? null : (actual_ver.type === 'last' ? all_versions.filter((f: any) => Number(f) > Number(actual_ver.name_ver))?.[0] : actual_ver.name_ver)))
 
-        return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', campaign: this });
+        return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
     }
 
     /**
@@ -387,7 +387,7 @@ export default class ClickaduCampaign extends Campaign {
                     list: list ?? [],
                     type: type ?? false
                 }))
-            return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', campaign: this })
+            return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this })
         } else if (responseSetPlacements.status === 304) {
             return new ResponceApiNetwork({ code: RESPONSE_CODES.NOT_MODIFIED, message: JSON.stringify(responseSetPlacements) })
         } else {
