@@ -42,7 +42,7 @@ module.exports = {
       }
     ]
   },
-  externals: ['axios', 'ats-lib-ntwk-common'],
+  externals: ['axios', 'ats-lib-ntwk-common', 'ats-lib-logger'],
   resolve: {
     modules: [path.resolve('./src')],
     extensions: ['.js', '.ts']

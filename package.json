@@ -45,7 +45,8 @@
     "webpack-cli": "^5.0.2"
   },
   "dependencies": {
-    "ats-lib-ntwk-common": "file:../ATS-lib-ntwk-common",
-    "axios": "^1.3.6"
+    "axios": "^1.3.6",
+    "ats-lib-ntwk-common": "https://github.com/ATSOrganization/ATS-lib-ntwk-common",
+    "ats-lib-logger": "https://github.com/ATSOrganization/ATS-lib-logger"
   }
 }

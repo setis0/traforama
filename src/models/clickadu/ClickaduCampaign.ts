@@ -1,5 +1,6 @@
 import { RESPONSE_CODES } from '../../consts';
 import FullDataCampaign from './api/FullDataCampaign';
+import { Logger } from 'ats-lib-logger';
 
 import {
   ScheduleCampaign,
@@ -83,6 +84,8 @@ export default class ClickaduCampaign extends Campaign {
       .setFreqCapType('user');
 
     // return fullDataCampaign.value;
+    // new Logger({ fullDataCampaign, list: placements_data.value?.list?.length }).log();
+
     const responseCreateCampaign = await this.updateRaw(fullDataCampaign);
 
     if (responseCreateCampaign && responseCreateCampaign.result && responseCreateCampaign.result === 'success') {
