@@ -1,6 +1,6 @@
 {
   "name": "@atsorganization/ats-lib-clickadu",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Library connection API AdNetwork clickadu",
   "main": "lib/index.js",
   "repository": "https://github.com/ATSOrganization/ATS-lib-clickadu",

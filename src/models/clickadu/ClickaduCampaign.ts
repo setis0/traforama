@@ -119,7 +119,7 @@ export default class ClickaduCampaign extends Campaign {
    * @param data
    * @returns
    */
-  private prepareStatus(data: FullDataCampaign) {
+  private prepareStatus(data: FullDataCampaign): StatusCampaign {
     const { isArchived, status } = data.value;
     return new StatusCampaign(
       isArchived
@@ -369,11 +369,25 @@ export default class ClickaduCampaign extends Campaign {
    * @param id
    * @returns
    */
-  async getStatus(): Promise<StatusCampaign> {
+  async getStatus(): Promise<ResponceApiNetwork> {
     this.handlerErrNotIdCampaign();
     const externalUrl = 'api/v2/campaigns/' + this.id.value + '/';
     const responseStatus = await this.conn.api_conn?.get(externalUrl).then((d: IHttpResponse) => d.data);
-    return this.prepareStatus(new FullDataCampaign(responseStatus));
+
+    const fullDataCampaign = new FullDataCampaign(responseStatus);
+
+    if (fullDataCampaign?.value.id) {
+      return new ResponceApiNetwork({
+        code: RESPONSE_CODES.SUCCESS,
+        message: 'OK',
+        data: this.prepareStatus(fullDataCampaign)
+      });
+    } else {
+      return new ResponceApiNetwork({
+        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+        message: JSON.stringify(responseStatus)
+      });
+    }
   }
 
   /**
@@ -460,7 +474,15 @@ export default class ClickaduCampaign extends Campaign {
     //Получаем статус кампании
 
     if (!this.status?.value) {
-      this.status = await this.getStatus();
+      const responseGetStatus = await this.getStatus().then((d: ResponceApiNetwork) => d.value);
+      if (responseGetStatus?.data instanceof StatusCampaign) {
+        this.status = responseGetStatus.data;
+      } else {
+        return new ResponceApiNetwork({
+          code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+          message: String(responseGetStatus?.message)
+        });
+      }
     }
 
     if (this.status.value === 'archived') {

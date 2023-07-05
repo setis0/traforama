@@ -30,7 +30,7 @@ export default class ClickaduAccount extends Account {
     return new ResponceApiNetwork({
       code: balance ? RESPONSE_CODES.SUCCESS : RESPONSE_CODES.INTERNAL_SERVER_ERROR,
       message: balance ? 'OK' : JSON.stringify(responseBalance),
-      data: balance
+      data: new BalanceAccount(balance)
     });
   }
 
