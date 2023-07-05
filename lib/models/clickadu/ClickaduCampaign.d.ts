@@ -1,5 +1,5 @@
 import FullDataCampaign from './api/FullDataCampaign';
-import { ScheduleCampaign, ResponceApiNetwork, StatusCampaign, PlacementCampaign, ICampaign, Campaign } from 'ats-lib-ntwk-common';
+import { ScheduleCampaign, ResponceApiNetwork, StatusCampaign, PlacementCampaign, ICampaign, Campaign } from '@atsorganization/ats-lib-ntwk-common';
 export default class ClickaduCampaign extends Campaign {
     /**
      * Создание кампании

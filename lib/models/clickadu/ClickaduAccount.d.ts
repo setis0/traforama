@@ -1,4 +1,4 @@
-import { Account, ResponceApiNetwork } from 'ats-lib-ntwk-common';
+import { Account, ResponceApiNetwork } from '@atsorganization/ats-lib-ntwk-common';
 export default class ClickaduAccount extends Account {
     /**
      * Получение баласна

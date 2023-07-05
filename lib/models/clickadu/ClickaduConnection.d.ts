@@ -1,4 +1,4 @@
-import { NetworkConnection, Campaign, Account } from 'ats-lib-ntwk-common';
+import { NetworkConnection, Campaign, Account } from '@atsorganization/ats-lib-ntwk-common';
 export default class ClickaduConnection extends NetworkConnection {
     /**
      * Авторизация в сети
