@@ -4,7 +4,14 @@ import RuCaptcha from '../../services/RuCaptcha';
 import { RU_CAPTCHA_KEY } from '../../consts';
 
 import ClickaduAccount from './ClickaduAccount';
-import { NetworkConnection, Campaign, HttpInstance, IHttpConfig, IHttpResponse, Account } from 'ats-lib-ntwk-common';
+import {
+  NetworkConnection,
+  Campaign,
+  HttpInstance,
+  IHttpConfig,
+  IHttpResponse,
+  Account
+} from '@atsorganization/ats-lib-ntwk-common';
 
 export default class ClickaduConnection extends NetworkConnection {
   /**

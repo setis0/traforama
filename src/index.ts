@@ -12,7 +12,7 @@ import {
   CountryCampaign,
   BrowserVersionCampaign,
   BidCampaign
-} from 'ats-lib-ntwk-common';
+} from '@atsorganization/ats-lib-ntwk-common';
 
 export {
   BrowserVersionCampaign as BrowserVersionCampaign,

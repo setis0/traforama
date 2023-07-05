@@ -1,6 +1,6 @@
 import { RESPONSE_CODES } from '../../consts';
 import FullDataCampaign from './api/FullDataCampaign';
-import { Logger } from 'ats-lib-logger';
+import { Logger } from '@atsorganization/ats-lib-logger';
 
 import {
   ScheduleCampaign,
@@ -16,7 +16,7 @@ import {
   CountryCampaign,
   Campaign,
   BidCampaign
-} from 'ats-lib-ntwk-common';
+} from '@atsorganization/ats-lib-ntwk-common';
 
 export default class ClickaduCampaign extends Campaign {
   /**

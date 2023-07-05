@@ -1,5 +1,5 @@
 import { RESPONSE_CODES } from '../../consts';
-import { IHttpResponse, Account, BalanceAccount, ResponceApiNetwork } from 'ats-lib-ntwk-common';
+import { IHttpResponse, Account, BalanceAccount, ResponceApiNetwork } from '@atsorganization/ats-lib-ntwk-common';
 
 export default class ClickaduAccount extends Account {
   /**
