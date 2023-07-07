@@ -1,4 +1,5 @@
 import { RESPONSE_CODES } from '../../consts';
+import { ErrorClickadu } from './api/Errors';
 import FullDataCampaign from './api/FullDataCampaign';
 import { Logger } from '@atsorganization/ats-lib-logger';
 
@@ -398,71 +399,82 @@ export default class ClickaduCampaign extends Campaign {
   async updatePlacements(data: PlacementCampaign): Promise<ResponceApiNetwork> {
     this.handlerErrNotIdCampaign();
     const _val = data.value;
-    let list = _val?.list;
-    let type = _val?.type;
+    const list = _val?.list;
+    const type = _val?.type;
     const typeList = !type ? 'targeted' : 'blocked';
     const externalUrl = `v1.0/api/client/campaigns/${this.id?.value}/${typeList}/zone/`;
 
     const headers = {
       'Content-Type': 'application/json'
     };
-    const responseSetPlacements = await this.conn.api_conn
-      ?.put(
-        externalUrl,
-        JSON.stringify(list),
-        {
-          headers
-        },
-        (status: number) => status === 400 || status === 200
-      )
-      .then((d: IHttpResponse) => d.data);
-    // console.log(responseSetPlacements);
-    // new Logger({
-    //     resp: responseSetPlacements.data,
-    //     url,
-    //     data: placements,
-    //     headers
-    // })
-    //     .setTag('updateOnlyPlacement')
-    //     .setNetwork(this.constructor.name.toLowerCase())
-    //     .setCampaignId(dataSetPlacement.campaignId)
-    //     .log();
-    if (responseSetPlacements.resp?.error) {
-      // new Logger(responseSetPlacements.data.resp?.error)
-      //     .setTag('updateOnlyPlacement')
-      //     .setDescription('Ошибка при обновлении кампании в рекл сети')
-      //     .setNetwork(this.constructor.name.toLowerCase())
-      //     .setCampaignId(dataSetPlacement.campaignId)
-      //     .warning();
-    }
-    // const currentStatus = responseSetPlacements.data.id ? new StatusCampaign(responseSetPlacements.data.status).validStatus : responseSetPlacements.status === 304;
-    // console.log(responseSetPlacements.data);
-    // return currentStatus;
-    // if (currentStatus === STATUS_CAMPAIGN_DRAFT) {
-    //     return STATUS_CAMPAIGN_DRAFT;
-    // } else {
+    if (this.conn.api_conn) {
+      const responseSetPlacement: FullDataCampaign = await this.conn.api_conn
+        ?.put(
+          externalUrl,
+          JSON.stringify(list),
+          {
+            headers
+          }
+          // (status: number) => status === 400 || status === 200 || status === 304
+        )
+        .then((d: IHttpResponse) => {
+          const r = d.data;
+          return new FullDataCampaign({
+            id: r.id,
+            name: r.name,
+            rates: r.rates,
+            targetUrl: r.targetUrl,
+            frequency: r.frequency,
+            capping: r.capping,
+            isArchived: r.isArchived, //mabe boolean
+            impFrequency: r.impFrequency,
+            impCapping: r.impCapping,
+            rateModel: r.rateModel,
+            direction: r.direction,
+            status: r.status,
+            evenlyLimitsUsage: r.evenlyLimitsUsage,
+            trafficQuality: r.trafficQuality,
+            autoLinkNewZones: r.autoLinkNewZones,
+            isAdblockBuy: r.isAdblockBuy, //mabe boolean
+            trafficBoost: r.trafficBoost,
+            startedAt: r.startedAt,
+            feed: r.feed,
+            isDSP: r.isDSP,
+            trafficVertical: r.trafficVertical,
+            freqCapType: r.freqCapType,
+            targeting: r.targeting
+          });
+        });
 
-    if (responseSetPlacements.id) {
+      // if (responseSetPlacement.id) {
       this.setPlacementsData(
         new PlacementCampaign({
           list: list ?? [],
           type: type ?? false
         })
-      );
+      ).setStatus(this.prepareStatus(responseSetPlacement));
+
       return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
-    } else if (responseSetPlacements.status === 304) {
-      return new ResponceApiNetwork({
-        code: RESPONSE_CODES.NOT_MODIFIED,
-        message: JSON.stringify(responseSetPlacements)
-      });
+      // } else if (responseSetPlacement.status === 304) {
+      //   return new ResponceApiNetwork({
+      //     code: RESPONSE_CODES.NOT_MODIFIED,
+      //     message: JSON.stringify(responseSetPlacement)
+      //   });
+      // } else {
+      //   return new ResponceApiNetwork({
+      //     code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+      //     message: JSON.stringify(responseSetPlacement)
+      //   });
+      // }
+      // return responseSetPlacements.data.id || responseSetPlacements.status === 304 ? true : responseSetPlacements.data;
+      // }
     } else {
       return new ResponceApiNetwork({
         code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        message: JSON.stringify(responseSetPlacements)
+        message: 'not connect network',
+        data: this
       });
     }
-    // return responseSetPlacements.data.id || responseSetPlacements.status === 304 ? true : responseSetPlacements.data;
-    // }
   }
 
   /**
