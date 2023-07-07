@@ -408,7 +408,7 @@ export default class ClickaduCampaign extends Campaign {
       'Content-Type': 'application/json'
     };
     if (this.conn.api_conn) {
-      const responseSetPlacement: FullDataCampaign = await this.conn.api_conn
+      const responseSetPlacement: FullDataCampaign | ErrorClickadu = await this.conn.api_conn
         ?.put(
           externalUrl,
           JSON.stringify(list),
@@ -419,53 +419,58 @@ export default class ClickaduCampaign extends Campaign {
         )
         .then((d: IHttpResponse) => {
           const r = d.data;
-          return new FullDataCampaign({
-            id: r.id,
-            name: r.name,
-            rates: r.rates,
-            targetUrl: r.targetUrl,
-            frequency: r.frequency,
-            capping: r.capping,
-            isArchived: r.isArchived, //mabe boolean
-            impFrequency: r.impFrequency,
-            impCapping: r.impCapping,
-            rateModel: r.rateModel,
-            direction: r.direction,
-            status: r.status,
-            evenlyLimitsUsage: r.evenlyLimitsUsage,
-            trafficQuality: r.trafficQuality,
-            autoLinkNewZones: r.autoLinkNewZones,
-            isAdblockBuy: r.isAdblockBuy, //mabe boolean
-            trafficBoost: r.trafficBoost,
-            startedAt: r.startedAt,
-            feed: r.feed,
-            isDSP: r.isDSP,
-            trafficVertical: r.trafficVertical,
-            freqCapType: r.freqCapType,
-            targeting: r.targeting
-          });
+          if (r.id) {
+            return new FullDataCampaign({
+              id: r.id,
+              name: r.name,
+              rates: r.rates,
+              targetUrl: r.targetUrl,
+              frequency: r.frequency,
+              capping: r.capping,
+              isArchived: r.isArchived, //mabe boolean
+              impFrequency: r.impFrequency,
+              impCapping: r.impCapping,
+              rateModel: r.rateModel,
+              direction: r.direction,
+              status: r.status,
+              evenlyLimitsUsage: r.evenlyLimitsUsage,
+              trafficQuality: r.trafficQuality,
+              autoLinkNewZones: r.autoLinkNewZones,
+              isAdblockBuy: r.isAdblockBuy, //mabe boolean
+              trafficBoost: r.trafficBoost,
+              startedAt: r.startedAt,
+              feed: r.feed,
+              isDSP: r.isDSP,
+              trafficVertical: r.trafficVertical,
+              freqCapType: r.freqCapType,
+              targeting: r.targeting
+            });
+          } else {
+            return new ErrorClickadu({
+              error: {
+                code: r.error.code,
+                message: r.error.message
+              }
+            });
+          }
         });
 
-      // if (responseSetPlacement.id) {
-      this.setPlacementsData(
-        new PlacementCampaign({
-          list: list ?? [],
-          type: type ?? false
-        })
-      ).setStatus(this.prepareStatus(responseSetPlacement));
+      if (responseSetPlacement instanceof FullDataCampaign) {
+        this.setPlacementsData(
+          new PlacementCampaign({
+            list: list ?? [],
+            type: type ?? false
+          })
+        ).setStatus(this.prepareStatus(responseSetPlacement));
 
-      return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
-      // } else if (responseSetPlacement.status === 304) {
-      //   return new ResponceApiNetwork({
-      //     code: RESPONSE_CODES.NOT_MODIFIED,
-      //     message: JSON.stringify(responseSetPlacement)
-      //   });
-      // } else {
-      //   return new ResponceApiNetwork({
-      //     code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-      //     message: JSON.stringify(responseSetPlacement)
-      //   });
-      // }
+        return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
+      } else {
+        return new ResponceApiNetwork({
+          code: responseSetPlacement.value.error.code,
+          message: JSON.stringify(responseSetPlacement.value)
+        });
+      }
+
       // return responseSetPlacements.data.id || responseSetPlacements.status === 304 ? true : responseSetPlacements.data;
       // }
     } else {
