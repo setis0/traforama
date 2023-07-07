@@ -421,7 +421,7 @@ export default class ClickaduCampaign extends Campaign {
           list: list ?? [],
           type: type ?? false
         })
-      ).setStatus(this.prepareStatus(fullDataCampaign));
+      ).setStatus(dataCamp.status);
 
       return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
     } else {
