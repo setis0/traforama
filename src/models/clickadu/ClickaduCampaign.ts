@@ -407,77 +407,27 @@ export default class ClickaduCampaign extends Campaign {
     const headers = {
       'Content-Type': 'application/json'
     };
-    if (this.conn.api_conn) {
-      const responseSetPlacement: FullDataCampaign | ErrorClickadu = await this.conn.api_conn
-        ?.put(
-          externalUrl,
-          JSON.stringify(list),
-          {
-            headers
-          }
-          // (status: number) => status === 400 || status === 200 || status === 304
-        )
-        .then((d: IHttpResponse) => {
-          const r = d.data;
-          if (r.id) {
-            return new FullDataCampaign({
-              id: r.id,
-              name: r.name,
-              rates: r.rates,
-              targetUrl: r.targetUrl,
-              frequency: r.frequency,
-              capping: r.capping,
-              isArchived: r.isArchived, //mabe boolean
-              impFrequency: r.impFrequency,
-              impCapping: r.impCapping,
-              rateModel: r.rateModel,
-              direction: r.direction,
-              status: r.status,
-              evenlyLimitsUsage: r.evenlyLimitsUsage,
-              trafficQuality: r.trafficQuality,
-              autoLinkNewZones: r.autoLinkNewZones,
-              isAdblockBuy: r.isAdblockBuy, //mabe boolean
-              trafficBoost: r.trafficBoost,
-              startedAt: r.startedAt,
-              feed: r.feed,
-              isDSP: r.isDSP,
-              trafficVertical: r.trafficVertical,
-              freqCapType: r.freqCapType,
-              targeting: r.targeting
-            });
-          } else {
-            return new ErrorClickadu({
-              error: {
-                code: r.error.code,
-                message: r.error.message
-              }
-            });
-          }
-        });
 
-      if (responseSetPlacement instanceof FullDataCampaign) {
-        this.setPlacementsData(
-          new PlacementCampaign({
-            list: list ?? [],
-            type: type ?? false
-          })
-        ).setStatus(this.prepareStatus(responseSetPlacement));
+    const responseSetPlacement = await this.conn.api_conn?.put(externalUrl, JSON.stringify(list), {
+      headers
+    });
+    const dataCamp = responseSetPlacement?.data;
+    const status = responseSetPlacement?.status;
 
-        return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
-      } else {
-        return new ResponceApiNetwork({
-          code: responseSetPlacement.value?.error?.code,
-          message: JSON.stringify(responseSetPlacement.value)
-        });
-      }
+    if (dataCamp.id) {
+      const fullDataCampaign = new FullDataCampaign(dataCamp);
+      this.setPlacementsData(
+        new PlacementCampaign({
+          list: list ?? [],
+          type: type ?? false
+        })
+      ).setStatus(this.prepareStatus(fullDataCampaign));
 
-      // return responseSetPlacements.data.id || responseSetPlacements.status === 304 ? true : responseSetPlacements.data;
-      // }
+      return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
     } else {
       return new ResponceApiNetwork({
-        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        message: 'not connect network',
-        data: this
+        code: Number(status),
+        message: JSON.stringify(dataCamp)
       });
     }
   }
