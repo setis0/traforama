@@ -466,7 +466,7 @@ export default class ClickaduCampaign extends Campaign {
         return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
       } else {
         return new ResponceApiNetwork({
-          code: responseSetPlacement.value.error.code,
+          code: responseSetPlacement.value?.error?.code,
           message: JSON.stringify(responseSetPlacement.value)
         });
       }
