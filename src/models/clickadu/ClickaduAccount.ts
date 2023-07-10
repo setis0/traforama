@@ -5,7 +5,7 @@ export default class ClickaduAccount extends Account {
   /**
    * Получение баласна
    */
-  async getBalance(): Promise<ResponceApiNetwork> {
+  async getBalance(): Promise<ResponceApiNetwork<BalanceAccount>> {
     const externalUrl = 'api/v2/client/balance/';
     const responseBalance = await this.conn.api_conn?.get(externalUrl).then((resp: IHttpResponse) => resp.data);
     // new Logger({
@@ -37,7 +37,7 @@ export default class ClickaduAccount extends Account {
   /**
    * Получить данные аккаунта из сети
    */
-  fetch(): Promise<ResponceApiNetwork> {
+  fetch(): Promise<ResponceApiNetwork<Account>> {
     throw new Error('Method not implemented.');
   }
 }

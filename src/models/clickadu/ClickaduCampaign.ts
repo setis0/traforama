@@ -26,7 +26,10 @@ export default class ClickaduCampaign extends Campaign {
    * @param data
    * @returns
    */
-  async create(data: ICampaign, schedule: ScheduleCampaign = new ScheduleCampaign()): Promise<ResponceApiNetwork> {
+  async create(
+    data: ICampaign,
+    schedule: ScheduleCampaign = new ScheduleCampaign()
+  ): Promise<ResponceApiNetwork<Campaign>> {
     const { name, template_id, bid, country, placements_data, target_url } = data;
 
     const fullDataCampaign: FullDataCampaign | null = await this.getFullDataCampaign(new IdCampaign(template_id.value));
@@ -140,7 +143,7 @@ export default class ClickaduCampaign extends Campaign {
    * по-умолчанию полное расписание
    * @param schedule
    */
-  async updateSchedule(schedule: ScheduleCampaign = new ScheduleCampaign()): Promise<ResponceApiNetwork> {
+  async updateSchedule(schedule: ScheduleCampaign = new ScheduleCampaign()): Promise<ResponceApiNetwork<Campaign>> {
     this.handlerErrNotIdCampaign();
     const fullDataCampaign: FullDataCampaign | null = await this.getFullDataCampaign(this.id);
     if (!fullDataCampaign) {
@@ -197,7 +200,7 @@ export default class ClickaduCampaign extends Campaign {
   /**
    * вытянуть все данные по кампании из сети
    */
-  async fetch(): Promise<ResponceApiNetwork> {
+  async fetch(): Promise<ResponceApiNetwork<Campaign>> {
     this.handlerErrNotIdCampaign();
     const fullDataResponse: FullDataCampaign | null = await this.getFullDataCampaign(this.id);
     if (!fullDataResponse) {
@@ -370,7 +373,7 @@ export default class ClickaduCampaign extends Campaign {
    * @param id
    * @returns
    */
-  async getStatus(): Promise<ResponceApiNetwork> {
+  async getStatus(): Promise<ResponceApiNetwork<StatusCampaign>> {
     this.handlerErrNotIdCampaign();
     const externalUrl = 'api/v2/campaigns/' + this.id.value + '/';
     const responseStatus = await this.conn.api_conn?.get(externalUrl).then((d: IHttpResponse) => d.data);
@@ -396,7 +399,7 @@ export default class ClickaduCampaign extends Campaign {
    * @param data
    * @returns
    */
-  async updatePlacements(data: PlacementCampaign): Promise<ResponceApiNetwork> {
+  async updatePlacements(data: PlacementCampaign): Promise<ResponceApiNetwork<Campaign>> {
     this.handlerErrNotIdCampaign();
     const _val = data.value;
     const list = _val?.list;
