@@ -12,6 +12,7 @@ import {
   IHttpResponse,
   Account
 } from '@atsorganization/ats-lib-ntwk-common';
+import Clickadu from './Clickadu';
 
 export default class ClickaduConnection extends NetworkConnection {
   /**
@@ -75,6 +76,7 @@ export default class ClickaduConnection extends NetworkConnection {
         Authorization: `Bearer ${bearer_token}`
       }
     });
+
     this.keepAlive();
     return this;
   }

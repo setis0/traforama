@@ -1,4 +1,5 @@
 import { RESPONSE_CODES } from '../../consts';
+import ClickaduConnection from './ClickaduConnection';
 import { ErrorClickadu } from './api/Errors';
 import FullDataCampaign from './api/FullDataCampaign';
 import { Logger } from '@atsorganization/ats-lib-logger';
@@ -21,6 +22,169 @@ import {
 
 export default class ClickaduCampaign extends Campaign {
   /**
+   * Обвноление кампании
+   */
+  async update(): Promise<ResponceApiNetwork<Campaign>> {
+    this.handlerErrNotIdCampaign();
+    const fullDataCampaign: FullDataCampaign | null = await this.getFullDataCampaign(this.id);
+    if (!fullDataCampaign) {
+      return new ResponceApiNetwork({
+        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+        message: 'Not get data from network'
+      });
+    }
+    const { name, country, bid, target_url, schedule, placements_data, browser_version } = this.updatedProperties;
+    const { rates } = fullDataCampaign.value;
+    let code = rates?.[0]?.countries?.map((m: any) => m.id)?.[0];
+    const currentBid = rates?.[0]?.amount;
+    fullDataCampaign.setRates([
+      {
+        amount: currentBid,
+        countries: [String(code?.toLowerCase())],
+        isFutureRate: false
+      }
+    ]);
+
+    /**
+     * NAME
+     */
+    if (name) {
+      fullDataCampaign.setName(String(name.value));
+    }
+    /**
+     * COUNTRU
+     */
+    if (country) {
+      code = String(country.value);
+      fullDataCampaign
+        .setTargetingCountry({
+          list: [
+            {
+              id: String(code).toLowerCase(),
+              title: String(code).toUpperCase(),
+              code: String(code).toUpperCase()
+            }
+          ],
+          isExcluded: false
+        })
+        .setRates([
+          {
+            amount: currentBid,
+            countries: [String(code?.toLowerCase())],
+            isFutureRate: false
+          }
+        ]);
+    }
+    /**
+     * BID
+     */
+    if (bid) {
+      if (country) {
+        code = String(country.value);
+      }
+      if (code) {
+        fullDataCampaign.setRates([
+          {
+            amount: Math.ceil(Number(bid.value) * 100) / 100,
+            countries: [String(code?.toLowerCase())],
+            isFutureRate: false
+          }
+        ]);
+      }
+    }
+    /**
+     * TARGET_URL
+     */
+    if (target_url) {
+      fullDataCampaign.setTargetUrl(String(target_url.value));
+    }
+    /**
+     * SHECDULE
+     */
+    if (schedule) {
+      fullDataCampaign.setTargetingTimeTable({
+        list: schedule.value,
+        isExcluded: false
+      });
+    }
+    /**
+     * PLACEMENTS DATA
+     */
+    if (placements_data) {
+      const _val = placements_data.value;
+      const list = _val?.list;
+      const type = _val?.type;
+
+      fullDataCampaign.setTargetingZone({
+        list: list ?? [],
+        isExcluded: type ?? false
+      });
+    }
+    /**
+     * BROWSER VERSION
+     */
+    if (browser_version) {
+      const { name } = fullDataCampaign.value;
+      const lowercasedName = name.toLowerCase();
+
+      let type: string | null = null;
+      switch (true) {
+        case lowercasedName.includes('old ver'):
+          type = 'old';
+          break;
+        case lowercasedName.includes('last ver'):
+          type = 'last';
+          break;
+        case lowercasedName.includes('new ver'):
+          type = 'new';
+          break;
+      }
+
+      if (type) {
+        const newVer = Number(browser_version.value);
+        const allBrowsers = (await this.getBrowsers('chrome', true))
+          .map((m) => Number(m))
+          .filter((f) => !isNaN(f))
+          .sort((a: number, b: number) => a - b);
+        let list: string[] = [];
+        switch (type) {
+          case 'old':
+            list = allBrowsers.filter((f) => f >= 63 && f <= 74).map((m) => `chrome${m}`);
+            break;
+          case 'new':
+            list = allBrowsers.filter((f) => f >= 75 && f <= newVer).map((m) => `chrome${m}`);
+            break;
+          case 'last':
+            list = allBrowsers.filter((f) => f >= 1 && f <= newVer - 1).map((m) => `chrome${m}`);
+            break;
+        }
+        console.log(list);
+
+        fullDataCampaign.setTargetingBrowserVersion({
+          list: list.map((m) => {
+            return { id: m, title: m, code: m };
+          }),
+          isExcluded: !['old', 'new'].includes(type)
+        });
+      }
+    }
+
+    fullDataCampaign.setFreqCapType('user').setTargetingConnection('all');
+
+    const responseUpdateCampaign = await this.updateRaw(fullDataCampaign);
+
+    this.updatedProperties = {};
+
+    if (responseUpdateCampaign && responseUpdateCampaign.result && responseUpdateCampaign.result === 'success') {
+      return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
+    } else {
+      return new ResponceApiNetwork({
+        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+        message: JSON.stringify(responseUpdateCampaign)
+      });
+    }
+  }
+  /**
    * Создание кампании
    * @param conn
    * @param data
@@ -31,6 +195,8 @@ export default class ClickaduCampaign extends Campaign {
     schedule: ScheduleCampaign = new ScheduleCampaign()
   ): Promise<ResponceApiNetwork<Campaign>> {
     const { name, template_id, bid, country, placements_data, target_url } = data;
+
+    this.conn.admin_conn?.get('', {}, undefined);
 
     const fullDataCampaign: FullDataCampaign | null = await this.getFullDataCampaign(new IdCampaign(template_id.value));
     if (!fullDataCampaign) {
@@ -198,6 +364,37 @@ export default class ClickaduCampaign extends Campaign {
   }
 
   /**
+   * Парсинг номера версии браузера из вида chrome105, chrome106 ...
+   * @param titleVer
+   * @returns
+   */
+  private parseNameVer(titleVer: string): string {
+    return String(titleVer.match(/\d+$/)?.[0]);
+  }
+
+  /**
+   * Получение всех браузеров сети
+   * @param browser
+   * @returns
+   */
+  private async getBrowsers(browser: string = 'chrome', available: boolean = false): Promise<string[]> {
+    const externalUrl = `api/v1.0/client/targetings/${available ? 'available' : 'all'}/`;
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    return await this.conn.admin_conn
+      ?.get(externalUrl, {
+        headers
+      })
+      .then((resp: { data: any }) =>
+        resp?.data?.result?.browserVersion
+          ?.filter((f: any) => f?.id.startsWith(browser))
+          .map((m: any) => this.parseNameVer(m.id))
+      );
+  }
+
+  /**
    * вытянуть все данные по кампании из сети
    */
   async fetch(): Promise<ResponceApiNetwork<Campaign>> {
@@ -209,9 +406,7 @@ export default class ClickaduCampaign extends Campaign {
         message: 'Not get data from network'
       });
     }
-    const get_name_ver = (title_ver: string) => {
-      return title_ver.match(/\d+$/)?.[0];
-    };
+
     const { id, name, targetUrl, status, targeting, rates } = fullDataResponse.value;
     const is_old_ver = name.toLowerCase().indexOf('old ver') !== -1;
 
@@ -221,20 +416,12 @@ export default class ClickaduCampaign extends Campaign {
     };
     // console.log(`${this.clientData.baseUrl}${externalUrl}`, this.clientData.token);
 
-    const all_versions: any[] = await this.conn.admin_conn
-      ?.get(externalUrl, {
-        headers
-      })
-      .then((resp: { data: any }) =>
-        resp?.data?.result?.browserVersion
-          ?.filter((f: any) => f?.id.startsWith('chrome'))
-          .map((m: any) => get_name_ver(m.id))
-      );
+    const all_versions: string[] = await this.getBrowsers();
 
     // const _targeting = request_response?.targeting;
     const actual_list = targeting?.zone;
     const actual_ver = {
-      name_ver: get_name_ver(targeting.browserVersion.list[targeting.browserVersion.list.length - 1].id),
+      name_ver: this.parseNameVer(targeting.browserVersion.list[targeting.browserVersion.list.length - 1].id),
       type: targeting.browserVersion.isExcluded ? 'last' : 'newORold'
     };
     const actual_ststus = status;
@@ -257,8 +444,8 @@ export default class ClickaduCampaign extends Campaign {
           is_old_ver
             ? null
             : actual_ver.type === 'last'
-            ? all_versions.filter((f: any) => Number(f) > Number(actual_ver.name_ver))?.[0]
-            : actual_ver.name_ver
+            ? Number(all_versions.filter((f: any) => Number(f) > Number(actual_ver.name_ver))?.[0])
+            : Number(actual_ver.name_ver)
         )
       );
 
