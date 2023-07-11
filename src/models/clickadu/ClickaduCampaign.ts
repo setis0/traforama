@@ -23,6 +23,14 @@ import {
 export default class ClickaduCampaign extends Campaign {
   /**
    * Обвноление кампании
+   * доступны следующие свойства
+   * name
+   * country
+   * bid
+   * target_irl
+   * schedule
+   * placements_data
+   * browser_version
    */
   async update(): Promise<ResponceApiNetwork<Campaign>> {
     this.handlerErrNotIdCampaign();
@@ -34,6 +42,11 @@ export default class ClickaduCampaign extends Campaign {
       });
     }
     const { name, country, bid, target_url, schedule, placements_data, browser_version } = this.updatedProperties;
+    /**
+     * Устаналиваем статус кампании
+     */
+    this.setStatus(this.prepareStatus(fullDataCampaign));
+
     const { rates } = fullDataCampaign.value;
     let code = rates?.[0]?.countries?.map((m: any) => m.id)?.[0];
     const currentBid = rates?.[0]?.amount;
