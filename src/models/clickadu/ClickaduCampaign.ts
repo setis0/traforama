@@ -27,7 +27,7 @@ export default class ClickaduCampaign extends Campaign {
    * name
    * country
    * bid
-   * target_irl
+   * target_гкд - меняет статус на модерацию !!!
    * schedule
    * placements_data
    * browser_version
@@ -42,12 +42,8 @@ export default class ClickaduCampaign extends Campaign {
       });
     }
     const { name, country, bid, target_url, schedule, placements_data, browser_version } = this.updatedProperties;
-    /**
-     * Устаналиваем статус кампании
-     */
-    this.setStatus(this.prepareStatus(fullDataCampaign));
 
-    const { rates } = fullDataCampaign.value;
+    const { rates, targeting } = fullDataCampaign.value;
     let code = rates?.[0]?.countries?.map((m: any) => m.id)?.[0];
     const currentBid = rates?.[0]?.amount;
     fullDataCampaign.setRates([
@@ -57,6 +53,11 @@ export default class ClickaduCampaign extends Campaign {
         isFutureRate: false
       }
     ]);
+
+    fullDataCampaign.setTargetingZone({
+      list: targeting.zone.list.map((m) => m.id),
+      isExcluded: targeting.zone.isExcluded
+    });
 
     /**
      * NAME
@@ -110,6 +111,10 @@ export default class ClickaduCampaign extends Campaign {
      */
     if (target_url) {
       fullDataCampaign.setTargetUrl(String(target_url.value));
+      /**
+       * Устаналиваем статус кампании - модерация т к меняется ссылка
+       */
+      fullDataCampaign.setStatus(2);
     }
     /**
      * SHECDULE
@@ -171,7 +176,6 @@ export default class ClickaduCampaign extends Campaign {
             list = allBrowsers.filter((f) => f >= 1 && f <= newVer - 1).map((m) => `chrome${m}`);
             break;
         }
-        console.log(list);
 
         fullDataCampaign.setTargetingBrowserVersion({
           list: list.map((m) => {
@@ -183,6 +187,11 @@ export default class ClickaduCampaign extends Campaign {
     }
 
     fullDataCampaign.setFreqCapType('user').setTargetingConnection('all');
+
+    /**
+     * Устаналиваем статус кампании
+     */
+    this.setStatus(this.prepareStatus(fullDataCampaign));
 
     const responseUpdateCampaign = await this.updateRaw(fullDataCampaign);
 
