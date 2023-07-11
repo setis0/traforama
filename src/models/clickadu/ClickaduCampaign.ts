@@ -55,8 +55,8 @@ export default class ClickaduCampaign extends Campaign {
     ]);
 
     fullDataCampaign.setTargetingZone({
-      list: targeting.zone.list.map((m) => m.id),
-      isExcluded: targeting.zone.isExcluded
+      list: targeting?.zone?.list.map((m) => m.id) ?? [],
+      isExcluded: targeting?.zone?.isExcluded ?? false
     });
 
     /**
