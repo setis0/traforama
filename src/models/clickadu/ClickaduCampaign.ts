@@ -212,13 +212,8 @@ export default class ClickaduCampaign extends Campaign {
    * @param data
    * @returns
    */
-  async create(
-    data: ICampaign,
-    schedule: ScheduleCampaign = new ScheduleCampaign()
-  ): Promise<ResponceApiNetwork<Campaign>> {
-    const { name, template_id, bid, country, placements_data, target_url } = data;
-
-    this.conn.admin_conn?.get('', {}, undefined);
+  async create(data: ICampaign): Promise<ResponceApiNetwork<Campaign>> {
+    const { name, template_id, bid, country, placements_data, target_url, schedule } = data;
 
     const fullDataCampaign: FullDataCampaign | null = await this.getFullDataCampaign(new IdCampaign(template_id.value));
     if (!fullDataCampaign) {
@@ -270,7 +265,7 @@ export default class ClickaduCampaign extends Campaign {
         isExcluded: placements_data.value?.type ?? false
       })
       .setTargetingTimeTable({
-        list: schedule.value,
+        list: schedule?.value ?? new ScheduleCampaign().value,
         isExcluded: false
       })
       .setFreqCapType('user');
