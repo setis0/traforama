@@ -181,6 +181,7 @@ export default class ExoclickCampaign extends Campaign {
       });
     }
   }
+
   /**
    * Создание кампании
    * @param conn
@@ -465,64 +466,86 @@ export default class ExoclickCampaign extends Campaign {
       .then((d: IHttpResponse) => d.data);
   }
 
+  private async getDataRequest(externalUrl: string) {
+    return await this.conn.admin_conn?.get(`${externalUrl}`).then((d: IHttpResponse) => d.data);
+  }
+
+  private async postDataRequest(externalUrl: string, data: any) {
+    return await this.conn.admin_conn?.post(`${externalUrl}`, data).then((d: IHttpResponse) => d.data);
+  }
+
+  private async putDataRequest(externalUrl: string, data: any = null) {
+    if (data === null) {
+      return await this.conn.admin_conn?.put(`${externalUrl}`, {}).then((d: IHttpResponse) => d.data);
+    } else {
+      return await this.conn.admin_conn?.put(`${externalUrl}`, data).then((d: IHttpResponse) => d.data);
+    }
+  }
+
+  private async cloneCampaign(templateId: string) {
+    const externalUrl = `campaigns/${templateId}/copy`;
+    return await this.putDataRequest(externalUrl);
+  }
+
   /**
    * Получение полной информации по кампании из сети
    * @param campaignId
    * @returns
    */
   private async getFullDataCampaign(campaignId: IdCampaign): Promise<FullDataCampaign | null> {
-    const externalUrl = `api/v1.0/client/campaigns/${campaignId.value}/`;
+    const externalUrl = `campaigns/${campaignId.value}`;
+    const getData = await this.getDataRequest(externalUrl);
     let data: FullDataCampaign | null = null;
-    if (this.conn.admin_conn) {
-      data = await this.conn.admin_conn.get(externalUrl).then((resp: IHttpResponse) => {
-        const r = resp.data.result;
-        return new FullDataCampaign({
-          id: r.id,
-          name: r.name,
-          rates: r.rates,
-          targetUrl: r.targetUrl,
-          frequency: r.frequency,
-          capping: r.capping,
-          isArchived: r.isArchived,
-          impFrequency: r.impFrequency,
-          impCapping: r.impCapping,
-          freqCapType: r.freqCapType,
-          rateModel: r.rateModel,
-          direction: r.direction,
-          status: r.status,
-          evenlyLimitsUsage: r.evenlyLimitsUsage,
-          trafficQuality: r.trafficQuality,
-          autoLinkNewZones: r.autoLinkNewZones ?? false,
-          isAdblockBuy: r.isAdblockBuy,
-          trafficBoost: r.trafficBoost,
-          startedAt: r.startedAt,
-          feed: r.feed,
-          isDSP: r.isDSP,
-          trafficVertical: r.trafficVertical,
-          targeting: r.targeting
-        });
-      });
+    // if (this.conn.admin_conn) {
+    //   data = await this.conn.admin_conn.get(externalUrl).then((resp: IHttpResponse) => {
+    //     const r = resp.data.result;
+    //     return new FullDataCampaign({
+    //       id: r.id,
+    //       name: r.name,
+    //       rates: r.rates,
+    //       targetUrl: r.targetUrl,
+    //       frequency: r.frequency,
+    //       capping: r.capping,
+    //       isArchived: r.isArchived,
+    //       impFrequency: r.impFrequency,
+    //       impCapping: r.impCapping,
+    //       freqCapType: r.freqCapType,
+    //       rateModel: r.rateModel,
+    //       direction: r.direction,
+    //       status: r.status,
+    //       evenlyLimitsUsage: r.evenlyLimitsUsage,
+    //       trafficQuality: r.trafficQuality,
+    //       autoLinkNewZones: r.autoLinkNewZones ?? false,
+    //       isAdblockBuy: r.isAdblockBuy,
+    //       trafficBoost: r.trafficBoost,
+    //       startedAt: r.startedAt,
+    //       feed: r.feed,
+    //       isDSP: r.isDSP,
+    //       trafficVertical: r.trafficVertical,
+    //       targeting: r.targeting
+    //     });
+    //   });
 
-      // new Logger({
-      //     url,
-      //     headers,
-      //     data
-      // })
-      //     .setTag('getFullDataCampaign')
-      //     .setDescription('Получение данных кампании из рекл сети')
-      //     .setNetwork(this.constructor.name.toLowerCase())
-      //     .setCampaignId(campaignId)
-      //     .log();
+    // new Logger({
+    //     url,
+    //     headers,
+    //     data
+    // })
+    //     .setTag('getFullDataCampaign')
+    //     .setDescription('Получение данных кампании из рекл сети')
+    //     .setNetwork(this.constructor.name.toLowerCase())
+    //     .setCampaignId(campaignId)
+    //     .log();
 
-      // this.customQuery({
-      //     url: `${this.clientData.baseUrl}${externalUrl}`,
-      //     method: 'get',
-      //     headers: {
-      //         'Authorization': 'Bearer ' + this.clientData.token
-      //     },
-      // }, this);
-    }
-    return data;
+    // this.customQuery({
+    //     url: `${this.clientData.baseUrl}${externalUrl}`,
+    //     method: 'get',
+    //     headers: {
+    //         'Authorization': 'Bearer ' + this.clientData.token
+    //     },
+    // }, this);
+    // }
+    // return data;
   }
 
   /**
