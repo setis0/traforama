@@ -1,12 +1,12 @@
 import { RESPONSE_CODES } from '../../consts';
 import { IHttpResponse, Account, BalanceAccount, ResponceApiNetwork } from '@atsorganization/ats-lib-ntwk-common';
 
-export default class ClickaduAccount extends Account {
+export default class ExcoclickAccount extends Account {
   /**
    * Получение баласна
    */
   async getBalance(): Promise<ResponceApiNetwork<BalanceAccount>> {
-    const externalUrl = 'api/v2/client/balance/';
+    const externalUrl = 'user';
     const responseBalance = await this.conn.api_conn?.get(externalUrl).then((resp: IHttpResponse) => resp.data);
     // new Logger({
     //     resp: responseBalance,
@@ -18,11 +18,8 @@ export default class ClickaduAccount extends Account {
     //     .log();
 
     const balance =
-      responseBalance &&
-      responseBalance.result &&
-      responseBalance.result.advertiser &&
-      responseBalance.result.advertiser.balance
-        ? responseBalance.result.advertiser.balance
+      responseBalance && responseBalance.result && responseBalance.result.balance
+        ? responseBalance.result.balance
         : undefined;
     if (this.balance) {
       this.setBalance(new BalanceAccount(balance));

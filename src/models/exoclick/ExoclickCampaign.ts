@@ -1,6 +1,6 @@
 import { RESPONSE_CODES } from '../../consts';
-import ClickaduConnection from './ClickaduConnection';
-import { ErrorClickadu } from './api/Errors';
+import ExoclickConnection from './ExoclickConnection';
+import { ErrorExoclick } from './api/Errors';
 import FullDataCampaign from './api/FullDataCampaign';
 import { Logger } from '@atsorganization/ats-lib-logger';
 
@@ -20,7 +20,7 @@ import {
   BidCampaign
 } from '@atsorganization/ats-lib-ntwk-common';
 
-export default class ClickaduCampaign extends Campaign {
+export default class ExoclickCampaign extends Campaign {
   /**
    * Обвноление кампании
    * доступны следующие свойства

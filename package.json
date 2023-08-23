@@ -1,9 +1,9 @@
 {
-  "name": "@atsorganization/ats-lib-clickadu",
-  "version": "1.0.16",
-  "description": "Library connection API AdNetwork clickadu",
+  "name": "@atsorganization/ats-lib-exoclick",
+  "version": "1.0.0",
+  "description": "Library connection API AdNetwork exoclick",
   "main": "lib/index.js",
-  "repository": "https://github.com/ATSOrganization/ATS-lib-clickadu",
+  "repository": "https://github.com/ATSOrganization/ATS-lib-exoclick",
   "directories": {
     "lib": "lib",
     "test": "test"
