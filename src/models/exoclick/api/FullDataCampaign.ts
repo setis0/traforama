@@ -1,67 +1,53 @@
-interface IResultFullDataCampaignElemTargeting {
-  list: { id: string; code: string; title: string }[];
-  isExcluded: boolean;
+import { IUpdateDataCampaignZone, IUpdateDataCampaignZoneTargeting } from './UpdateDataCampaign';
+
+export interface IResultFullDataCampaignVariation {
+  idvariation: number;
+  name: string;
+  url: string;
+  calculated_status: string;
 }
 
-interface IResultFullDataCampaignElemTargetingBrowserVersion {
-  list: { id: string; code: string; title: string }[] | string[];
-  isExcluded: boolean;
+interface IResultFullDataCampaignRawCalculatedStatus {
+  id: number;
+  status: string;
 }
 
-interface IResultFullDataCampaignSimpleElemTargeting {
-  list: any[];
-  isExcluded: boolean;
+interface IResultFullDataCampaignRaw {
+  id: string;
+  name: string;
+  status: number;
+  calculated_status: IResultFullDataCampaignRawCalculatedStatus;
+  pricing_model: number;
+  price: number;
 }
 
-interface IResultFullDataCampaignRate {
-  amount: number;
-  countries: { id: string; code: string; title: string }[] | string[];
-  isFutureRate: boolean;
+export interface IResultFullDataCampaignCountryItem {
+  id: number;
+  short_name: string;
+  long_name: string;
+  iso2: string;
+  iso3: string;
+  is_eu_member: 0;
+  has_vat_exemption_territories: 0;
 }
 
-interface IResultFullDataCampaignTargeting {
-  isSlowConnectionIncluded: number;
-  connection: string;
-  os: IResultFullDataCampaignElemTargeting;
-  browser: IResultFullDataCampaignElemTargeting;
-  browserVersion: IResultFullDataCampaignElemTargeting;
-  country: IResultFullDataCampaignElemTargeting;
-  osType: IResultFullDataCampaignElemTargeting;
-  osVersion: IResultFullDataCampaignElemTargeting;
-  deviceType: IResultFullDataCampaignElemTargeting;
-  timeTable: IResultFullDataCampaignSimpleElemTargeting;
-  mobileIsp: IResultFullDataCampaignElemTargeting;
-  zone: IResultFullDataCampaignElemTargeting | IResultFullDataCampaignSimpleElemTargeting;
-  language: IResultFullDataCampaignElemTargeting;
-  proxy: number;
-  vertical: IResultFullDataCampaignElemTargeting;
-  // campaignTrafficVertical: IResultFullDataCampaignElemTargeting;
+export interface IResultFullDataCampaignCountry {
+  targeted?: IResultFullDataCampaignCountryItem[];
+  blocked?: IResultFullDataCampaignCountryItem[];
+}
+
+export interface IUpdateDataCampaignDayParting {
+  day: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  hours: number[];
 }
 
 interface IResultFullDataCampaign {
-  id: string;
-  name: string;
-  rates: IResultFullDataCampaignRate[];
-  targetUrl: string;
-  frequency: number;
-  capping: number;
-  isArchived: number; //mabe boolean
-  impFrequency: number;
-  impCapping: number;
-  rateModel: string;
-  direction: string;
-  status: number;
-  evenlyLimitsUsage: number;
-  trafficQuality: number;
-  autoLinkNewZones: boolean;
-  isAdblockBuy: number; //mabe boolean
-  trafficBoost: number;
-  startedAt: string;
-  feed: string;
-  isDSP: boolean;
-  trafficVertical: string;
-  freqCapType: string;
-  targeting: IResultFullDataCampaignTargeting;
+  campaign: IResultFullDataCampaignRaw;
+  variations: IResultFullDataCampaignVariation[];
+  countries: IResultFullDataCampaignCountry;
+  zones: IUpdateDataCampaignZone[];
+  zone_targeting: IUpdateDataCampaignZoneTargeting;
+  day_parting: IUpdateDataCampaignDayParting[];
 }
 
 export default class FullDataCampaign {
@@ -69,62 +55,5 @@ export default class FullDataCampaign {
 
   get value(): IResultFullDataCampaign {
     return this._value;
-  }
-
-  setTargetUrl(newTargetUrl: string): FullDataCampaign {
-    this._value.targetUrl = newTargetUrl;
-    return this;
-  }
-
-  setId(newId: string): FullDataCampaign {
-    this._value.id = newId;
-    return this;
-  }
-
-  setName(newName: string): FullDataCampaign {
-    this._value.name = newName;
-    return this;
-  }
-
-  setRates(newRates: IResultFullDataCampaignRate[]): FullDataCampaign {
-    this._value.rates = newRates;
-    return this;
-  }
-
-  setStatus(newStatus: number): FullDataCampaign {
-    this._value.status = newStatus;
-    return this;
-  }
-
-  setTargetingCountry(newTargetingCountry: IResultFullDataCampaignElemTargeting): FullDataCampaign {
-    this._value.targeting.country = newTargetingCountry;
-    return this;
-  }
-
-  setTargetingTimeTable(newTargetingTimeTable: IResultFullDataCampaignSimpleElemTargeting): FullDataCampaign {
-    this._value.targeting.timeTable = newTargetingTimeTable;
-    return this;
-  }
-
-  setTargetingZone(
-    newTargetingZone: IResultFullDataCampaignElemTargeting | IResultFullDataCampaignSimpleElemTargeting
-  ): FullDataCampaign {
-    this._value.targeting.zone = newTargetingZone;
-    return this;
-  }
-
-  setTargetingConnection(newTargetingConnection: string): FullDataCampaign {
-    this._value.targeting.connection = newTargetingConnection;
-    return this;
-  }
-
-  setFreqCapType(newFreqCapType: string): FullDataCampaign {
-    this._value.freqCapType = newFreqCapType;
-    return this;
-  }
-
-  setTargetingBrowserVersion(newTargetingBrowserVersion: IResultFullDataCampaignElemTargeting): FullDataCampaign {
-    this._value.targeting.browserVersion = newTargetingBrowserVersion;
-    return this;
   }
 }

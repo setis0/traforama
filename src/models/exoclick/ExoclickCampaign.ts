@@ -1,7 +1,11 @@
 import { RESPONSE_CODES } from '../../consts';
 import ExoclickConnection from './ExoclickConnection';
 import { ErrorExoclick } from './api/Errors';
-import FullDataCampaign from './api/FullDataCampaign';
+import FullDataCampaign, {
+  IResultFullDataCampaignCountryItem,
+  IResultFullDataCampaignVariation,
+  IUpdateDataCampaignDayParting
+} from './api/FullDataCampaign';
 import { Logger } from '@atsorganization/ats-lib-logger';
 
 import {
@@ -19,6 +23,10 @@ import {
   Campaign,
   BidCampaign
 } from '@atsorganization/ats-lib-ntwk-common';
+import UpdateDataCampaign, { IUpdateDataCampaignZone } from './api/UpdateDataCampaign';
+import UpdateUrlLlibrary from './api/UpdateUrlLlibrary';
+import ResultUpdateUrlLlibrary from './api/ResultUpdateUrlLlibrary';
+import UpdateVariationCampaign from './api/UpdateVariationCampaign';
 
 export default class ExoclickCampaign extends Campaign {
   /**
@@ -34,177 +42,7 @@ export default class ExoclickCampaign extends Campaign {
    */
   async update(): Promise<ResponceApiNetwork<Campaign>> {
     this.handlerErrNotIdCampaign();
-    const fullDataCampaign: FullDataCampaign | null = await this.getFullDataCampaign(this.id);
-    if (!fullDataCampaign) {
-      return new ResponceApiNetwork({
-        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        message: 'Not get data from network'
-      });
-    }
-    const { name, country, bid, target_url, schedule, placements_data, browser_version } = this.updatedProperties;
-
-    const { rates, targeting } = fullDataCampaign.value;
-    let code = rates?.[0]?.countries?.map((m: any) => m.id)?.[0];
-    const currentBid = rates?.[0]?.amount;
-    fullDataCampaign.setRates([
-      {
-        amount: currentBid,
-        countries: [String(code?.toLowerCase())],
-        isFutureRate: false
-      }
-    ]);
-
-    fullDataCampaign.setTargetingZone({
-      list: targeting?.zone?.list.map((m) => m.id) ?? [],
-      isExcluded: targeting?.zone?.isExcluded ?? false
-    });
-
-    /**
-     * NAME
-     */
-    if (name) {
-      fullDataCampaign.setName(String(name.value));
-    }
-    /**
-     * COUNTRU
-     */
-    if (country) {
-      code = String(country.value);
-      fullDataCampaign
-        .setTargetingCountry({
-          list: [
-            {
-              id: String(code).toLowerCase(),
-              title: String(code).toUpperCase(),
-              code: String(code).toUpperCase()
-            }
-          ],
-          isExcluded: false
-        })
-        .setRates([
-          {
-            amount: currentBid,
-            countries: [String(code?.toLowerCase())],
-            isFutureRate: false
-          }
-        ]);
-    }
-    /**
-     * BID
-     */
-    if (bid) {
-      if (country) {
-        code = String(country.value);
-      }
-      if (code) {
-        fullDataCampaign.setRates([
-          {
-            amount: Math.ceil(Number(bid.value) * 100) / 100,
-            countries: [String(code?.toLowerCase())],
-            isFutureRate: false
-          }
-        ]);
-      }
-    }
-    /**
-     * TARGET_URL
-     */
-    if (target_url) {
-      fullDataCampaign.setTargetUrl(String(target_url.value));
-      /**
-       * Устаналиваем статус кампании - модерация т к меняется ссылка
-       */
-      fullDataCampaign.setStatus(2);
-    }
-    /**
-     * SHECDULE
-     */
-    if (schedule) {
-      fullDataCampaign.setTargetingTimeTable({
-        list: schedule.value,
-        isExcluded: false
-      });
-    }
-    /**
-     * PLACEMENTS DATA
-     */
-    if (placements_data) {
-      const _val = placements_data.value;
-      const list = _val?.list;
-      const type = _val?.type;
-
-      fullDataCampaign.setTargetingZone({
-        list: list ?? [],
-        isExcluded: type ?? false
-      });
-    }
-    /**
-     * BROWSER VERSION
-     */
-    if (browser_version) {
-      const { name } = fullDataCampaign.value;
-      const lowercasedName = name.toLowerCase();
-
-      let type: string | null = null;
-      switch (true) {
-        case lowercasedName.includes('old ver'):
-          type = 'old';
-          break;
-        case lowercasedName.includes('last ver'):
-          type = 'last';
-          break;
-        case lowercasedName.includes('new ver'):
-          type = 'new';
-          break;
-      }
-
-      if (type) {
-        const newVer = Number(browser_version.value);
-        const allBrowsers = (await this.getBrowsers('chrome', true))
-          .map((m) => Number(m))
-          .filter((f) => !isNaN(f))
-          .sort((a: number, b: number) => a - b);
-        let list: string[] = [];
-        switch (type) {
-          case 'old':
-            list = allBrowsers.filter((f) => f >= 63 && f <= 74).map((m) => `chrome${m}`);
-            break;
-          case 'new':
-            list = allBrowsers.filter((f) => f >= 75 && f <= newVer).map((m) => `chrome${m}`);
-            break;
-          case 'last':
-            list = allBrowsers.filter((f) => f >= 1 && f <= newVer - 1).map((m) => `chrome${m}`);
-            break;
-        }
-
-        fullDataCampaign.setTargetingBrowserVersion({
-          list: list.map((m) => {
-            return { id: m, title: m, code: m };
-          }),
-          isExcluded: !['old', 'new'].includes(type)
-        });
-      }
-    }
-
-    fullDataCampaign.setFreqCapType('user').setTargetingConnection('all');
-
-    /**
-     * Устаналиваем статус кампании
-     */
-    this.setStatus(this.prepareStatus(fullDataCampaign));
-
-    const responseUpdateCampaign = await this.updateRaw(fullDataCampaign);
-
-    this.updatedProperties = {};
-
-    if (responseUpdateCampaign && responseUpdateCampaign.result && responseUpdateCampaign.result === 'success') {
-      return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
-    } else {
-      return new ResponceApiNetwork({
-        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        message: JSON.stringify(responseUpdateCampaign)
-      });
-    }
+    throw Error('Method not implemented');
   }
   /**
    * Создание кампании
@@ -237,45 +75,46 @@ export default class ExoclickCampaign extends Campaign {
       });
     }
 
-    fullDataCampaign
-      .setId(String(newIdCampaign.value))
-      .setName(String(name.value))
-      .setRates([
-        {
-          amount: Math.ceil(Number(bid.value) * 100) / 100,
-          countries: [String(country.value?.toLowerCase())],
-          isFutureRate: false
-        }
-      ])
-      .setTargetUrl(target_url.value)
-      .setStatus(2)
-      .setTargetingCountry({
-        list: [
-          {
-            id: String(country.value).toLowerCase(),
-            title: String(country.value).toUpperCase(),
-            code: String(country.value).toUpperCase()
-          }
-        ],
-        isExcluded: false
-      })
-      .setTargetingConnection('all')
-      .setTargetingZone({
-        list: placements_data.value?.list ?? [],
-        isExcluded: placements_data.value?.type ?? false
-      })
-      .setTargetingTimeTable({
-        list: schedule?.value ?? new ScheduleCampaign().value,
-        isExcluded: false
-      })
-      .setFreqCapType('user');
+    /**
+     * СОздаем library URL
+     */
+
+    const newLIbraryURL = await this.createLIbraryURL(new UpdateUrlLlibrary({ url: target_url.value }));
+    if (!newLIbraryURL?.value?.id) {
+      return new ResponceApiNetwork({
+        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+        message: 'Error createLIbraryURL'
+      });
+    }
+
+    /**
+     * Создаем вариацию к кампании с library url
+     */
+    const reultUpdateVariationCampaign = await this.updateVariationCampaign(
+      newIdCampaign.value,
+      fullDataCampaign.value.variations[0].idvariation,
+      new UpdateVariationCampaign({ id_library_url: newLIbraryURL.value.id })
+    );
+
+    new Logger(reultUpdateVariationCampaign).setTag('updateVariationCampaign').log();
+
+    /**
+     * ОБновляем кампанию
+     */
+    const updateDataCampaign = new UpdateDataCampaign({
+      id: Number(newIdCampaign),
+      name: String(name.value),
+      status: 1,
+      countries: { type: 'targeted', elements: [{ country: String(country.value) }] },
+      pricing: { model: fullDataCampaign.value.campaign.pricing_model, price: Number(bid.value) * 100 }
+    });
 
     // return fullDataCampaign.value;
     // new Logger({ fullDataCampaign, list: placements_data.value?.list?.length }).log();
 
-    const responseCreateCampaign = await this.updateRaw(fullDataCampaign);
+    const responseCreateCampaign = await this.updateRaw(updateDataCampaign);
 
-    if (responseCreateCampaign && responseCreateCampaign.result && responseCreateCampaign.result === 'success') {
+    if (responseCreateCampaign?.[0].includes('Campaign successfully updated')) {
       this.setId(newIdCampaign)
         .setName(name)
         .setTemplateId(template_id)
@@ -307,17 +146,20 @@ export default class ExoclickCampaign extends Campaign {
    * @returns
    */
   private prepareStatus(data: FullDataCampaign): StatusCampaign {
-    const { isArchived, status } = data.value;
+    const { campaign, variations } = data.value;
+    const { calculated_status } = campaign;
+    const { id, status: campaign_status } = calculated_status;
+    // const { calculated_status: variation_status } = variations[0];
     return new StatusCampaign(
-      isArchived
+      campaign_status === 'Archived'
         ? 'archived'
-        : [8, 7, 1].includes(status)
-        ? 'stopped'
-        : status === 3
+        : ['Running'].includes(campaign_status)
+        ? 'working'
+        : campaign_status === 'Rejected'
         ? 'rejected'
-        : status === 2
+        : campaign_status === 'Pending Approval'
         ? 'moderation'
-        : 'working'
+        : 'stopped'
     );
   }
 
@@ -328,42 +170,15 @@ export default class ExoclickCampaign extends Campaign {
    */
   async updateSchedule(schedule: ScheduleCampaign = new ScheduleCampaign()): Promise<ResponceApiNetwork<Campaign>> {
     this.handlerErrNotIdCampaign();
-    const fullDataCampaign: FullDataCampaign | null = await this.getFullDataCampaign(this.id);
-    if (!fullDataCampaign) {
-      return new ResponceApiNetwork({
-        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        message: 'Not get data from network'
-      });
-    }
-    const { targeting, id, name, rates } = fullDataCampaign.value;
-    console.log(targeting.country);
-    fullDataCampaign
-      .setRates([
-        {
-          amount: rates?.[0]?.amount,
-          isFutureRate: rates?.[0]?.isFutureRate,
-          countries: rates?.[0]?.countries.map((m: any) => m.id)
-        }
-      ])
-      .setTargetingTimeTable({
-        list: schedule.value,
-        isExcluded: false
-      })
-      .setTargetingZone({
-        list: targeting.zone?.list.map((m: any) => m.id) ?? [],
-        isExcluded: targeting.zone?.isExcluded ?? false
-      })
-      .setFreqCapType('user')
-      .setTargetingConnection('all');
+    const dataUpdate = new UpdateDataCampaign({
+      id: Number(this.id.value),
+      status: 1,
+      day_parting: this.reverseTransformSchedule(schedule)
+    });
+    const responseUpdateCampaign = await this.updateRaw(dataUpdate);
 
-    const responseUpdateCampaign = await this.updateRaw(fullDataCampaign);
-
-    if (responseUpdateCampaign && responseUpdateCampaign.result && responseUpdateCampaign.result === 'success') {
-      this.setId(new IdCampaign(id))
-        .setName(new NameCampaign(name))
-        .setBid(new BidCampaign(rates?.[0]?.amount))
-        .setStatus(this.prepareStatus(fullDataCampaign))
-        .setSchedule(schedule);
+    if (responseUpdateCampaign?.[0]?.includes('Campaign successfully updated')) {
+      this.setId(new IdCampaign(this.id.value)).setSchedule(schedule);
 
       return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
     } else {
@@ -381,34 +196,68 @@ export default class ExoclickCampaign extends Campaign {
   }
 
   /**
-   * Парсинг номера версии браузера из вида chrome105, chrome106 ...
-   * @param titleVer
+   * Транесформация расписания в нуждный формат
+   * @param rawTimeData
    * @returns
    */
-  private parseNameVer(titleVer: string): string {
-    return String(titleVer.match(/\d+$/)?.[0]);
+  private transformSchedule(rawTimeData: IUpdateDataCampaignDayParting[]): ScheduleCampaign {
+    const days = {
+      1: 'Mon',
+      2: 'Tue',
+      3: 'Wed',
+      4: 'Thu',
+      5: 'Fri',
+      6: 'Sat',
+      7: 'Sun'
+    };
+
+    return new ScheduleCampaign(
+      rawTimeData.length
+        ? rawTimeData.reduce(
+            (ac: any, el: IUpdateDataCampaignDayParting) =>
+              ac.concat(el.hours.map((m: any) => days[el.day] + (m < 10 ? `0${m}` : m))),
+            []
+          )
+        : undefined
+    );
   }
 
   /**
-   * Получение всех браузеров сети
-   * @param browser
+   * ОБРАТНАЯ Транесформация расписания в нуждный формат
+   * @param rawTimeData
    * @returns
    */
-  private async getBrowsers(browser: string = 'chrome', available: boolean = false): Promise<string[]> {
-    const externalUrl = `api/v1.0/client/targetings/${available ? 'available' : 'all'}/`;
-    const headers = {
-      'Content-Type': 'application/json'
+  private reverseTransformSchedule(rawTimeData: ScheduleCampaign): IUpdateDataCampaignDayParting[] {
+    const days: { [key: string]: number } = {
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+      Sun: 7
     };
 
-    return await this.conn.admin_conn
-      ?.get(externalUrl, {
-        headers
-      })
-      .then((resp: { data: any }) =>
-        resp?.data?.result?.browserVersion
-          ?.filter((f: any) => f?.id.startsWith(browser))
-          .map((m: any) => this.parseNameVer(m.id))
-      );
+    return rawTimeData.value.reduce((acc: any, item: any) => {
+      const day = days[item.substring(0, 3)]; // Получаем первые 3 символа (Mon, Tue, и так далее)
+      const hours = Number(item.substring(3)); // Получаем оставшиеся символы (часы) и преобразуем их в число
+
+      // Проверяем, существует ли уже группа с таким днем
+      const existingGroup = acc.find((group: any) => Number(group.day) === Number(day));
+
+      if (existingGroup) {
+        // Если группа уже существует, добавляем часы к ней
+        existingGroup.hours.push(hours);
+      } else {
+        // Если группы еще нет, создаем новую группу
+        acc.push({
+          day,
+          hours: [hours]
+        });
+      }
+
+      return acc;
+    }, []);
   }
 
   /**
@@ -424,49 +273,73 @@ export default class ExoclickCampaign extends Campaign {
       });
     }
 
-    const { id, name, targetUrl, status, targeting, rates } = fullDataResponse.value;
-    const is_old_ver = name.toLowerCase().indexOf('old ver') !== -1;
+    const {
+      zones,
+      zone_targeting,
+      day_parting,
+      campaign: { name, id, price },
+      countries: { targeted: CountryTargeted },
+      variations
+    } = fullDataResponse.value;
+    const { url } = variations[0];
+    let iso2 = '';
+    if (CountryTargeted?.[0]) {
+      iso2 = CountryTargeted?.[0]?.iso2;
+    }
 
-    const externalUrl = `api/v1.0/client/targetings/all/`;
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    // console.log(`${this.clientData.baseUrl}${externalUrl}`, this.clientData.token);
-
-    const all_versions: string[] = await this.getBrowsers();
-
-    // const _targeting = request_response?.targeting;
-    const actual_list = targeting?.zone;
-    const actual_ver = {
-      name_ver: this.parseNameVer(targeting.browserVersion.list[targeting.browserVersion.list.length - 1].id),
-      type: targeting.browserVersion.isExcluded ? 'last' : 'newORold'
-    };
-    const actual_ststus = status;
+    const actual_list = { list: zones.map((m) => m.idzone), type: zone_targeting.type };
 
     this.setId(new IdCampaign(id))
       .setName(new NameCampaign(name))
-      .setTargetUrl(new TargetUrlCampaign(targetUrl))
-      .setCountry(new CountryCampaign(targeting.country.list[0].id))
-      .setBid(new BidCampaign(rates?.[0]?.amount))
+      .setTargetUrl(new TargetUrlCampaign(url))
+      .setCountry(new CountryCampaign(iso2))
+      .setBid(new BidCampaign(price))
       .setPlacementsData(
         new PlacementCampaign({
           list: actual_list?.list?.map((m: any) => m?.id) ?? [],
-          type: actual_list?.isExcluded ?? false
+          type: actual_list?.type === 0 ?? false
         })
       )
       .setStatus(this.prepareStatus(fullDataResponse))
-      .setSchedule(new ScheduleCampaign(targeting.timeTable.list))
-      .setBrowserVersion(
-        new BrowserVersionCampaign(
-          is_old_ver
-            ? null
-            : actual_ver.type === 'last'
-            ? Number(all_versions.filter((f: any) => Number(f) > Number(actual_ver.name_ver))?.[0])
-            : Number(actual_ver.name_ver)
-        )
-      );
+      .setSchedule(this.transformSchedule(day_parting));
 
     return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
+  }
+
+  /**
+   * Создание library url
+   * @param data
+   * @returns
+   */
+  private async createLIbraryURL(data: UpdateUrlLlibrary): Promise<ResultUpdateUrlLlibrary> {
+    const externalUrl = `library/url/`;
+    return await this.conn.api_conn
+      ?.post(`${externalUrl}`, data.value, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      .then((d: IHttpResponse) => d.data);
+  }
+
+  /**
+   * Обновление вариации кампании
+   * @param data
+   * @returns
+   */
+  private async updateVariationCampaign(
+    campaignId: any,
+    variationId: any,
+    data: UpdateVariationCampaign
+  ): Promise<ResultUpdateUrlLlibrary> {
+    const externalUrl = 'campaigns/' + campaignId + '/variation/' + variationId;
+    return await this.conn.api_conn
+      ?.put(`${externalUrl}`, data.value, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      .then((d: IHttpResponse) => d.data);
   }
 
   /**
@@ -474,8 +347,8 @@ export default class ExoclickCampaign extends Campaign {
    * @param data
    * @returns
    */
-  protected async updateRaw(data: FullDataCampaign): Promise<any> {
-    const externalUrl = `api/v2/campaigns/${data.value.id}/`;
+  protected async updateRaw(data: UpdateDataCampaign): Promise<any> {
+    const externalUrl = `campaigns/${data.value.id}/`;
     return await this.conn.api_conn
       ?.put(`${externalUrl}`, data.value, {
         headers: {
@@ -491,35 +364,24 @@ export default class ExoclickCampaign extends Campaign {
    * @returns
    */
   private async getFullDataCampaign(campaignId: IdCampaign): Promise<FullDataCampaign | null> {
-    const externalUrl = `api/v1.0/client/campaigns/${campaignId.value}/`;
+    const externalUrl = `campaigns/${campaignId.value}/`;
     let data: FullDataCampaign | null = null;
-    if (this.conn.admin_conn) {
-      data = await this.conn.admin_conn.get(externalUrl).then((resp: IHttpResponse) => {
+    if (this.conn.api_conn) {
+      data = await this.conn.api_conn.get(externalUrl).then((resp: IHttpResponse) => {
         const r = resp.data.result;
+        const campaign = r.campaign;
+        const countries = r.countries;
+        const variations = r.variations;
+        const zones = r.zones;
+        const zone_targeting = r.zone_targeting;
+        const day_parting = r.day_parting;
         return new FullDataCampaign({
-          id: r.id,
-          name: r.name,
-          rates: r.rates,
-          targetUrl: r.targetUrl,
-          frequency: r.frequency,
-          capping: r.capping,
-          isArchived: r.isArchived,
-          impFrequency: r.impFrequency,
-          impCapping: r.impCapping,
-          freqCapType: r.freqCapType,
-          rateModel: r.rateModel,
-          direction: r.direction,
-          status: r.status,
-          evenlyLimitsUsage: r.evenlyLimitsUsage,
-          trafficQuality: r.trafficQuality,
-          autoLinkNewZones: r.autoLinkNewZones ?? false,
-          isAdblockBuy: r.isAdblockBuy,
-          trafficBoost: r.trafficBoost,
-          startedAt: r.startedAt,
-          feed: r.feed,
-          isDSP: r.isDSP,
-          trafficVertical: r.trafficVertical,
-          targeting: r.targeting
+          campaign,
+          variations,
+          countries,
+          zones,
+          zone_targeting,
+          day_parting
         });
       });
 
@@ -550,23 +412,16 @@ export default class ExoclickCampaign extends Campaign {
    * @param campaignId
    * @returns
    */
-  private async clone(campaign_id: IdCampaign): Promise<IdCampaign | false> {
-    const externalUrlClone = `api/v1.0/client/campaigns/${campaign_id.value}/clone/`;
-    const externalUrlGet = `v1.0/api/client/campaigns/?limit=1&page=1&status=draft`;
-    const postData = { name: '1' };
+  private async clone(campaignId: IdCampaign): Promise<IdCampaign | false> {
+    const externalUrlClone = `campaigns/${campaignId.value}/copy`;
     // Клонируем кампанию
     const cloneCampaignId = await this.conn.admin_conn
-      ?.post(`${externalUrlClone}`, postData, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      ?.put(`${externalUrlClone}`, {})
       .then((d: IHttpResponse) => d.data);
 
-    if (cloneCampaignId && cloneCampaignId.result && cloneCampaignId.result === 'success') {
+    if (cloneCampaignId && cloneCampaignId.idcampaign) {
       // Дёргаем ID новосозанной кампании
-      const newCampaignId = await this.conn.api_conn?.get(`${externalUrlGet}`).then((d: any) => d.data);
-      return newCampaignId.length && newCampaignId?.[0].id ? new IdCampaign(newCampaignId?.[0].id) : false;
+      return new IdCampaign(cloneCampaignId.idcampaign);
     } else {
       return false;
     }
@@ -579,16 +434,13 @@ export default class ExoclickCampaign extends Campaign {
    */
   async getStatus(): Promise<ResponceApiNetwork<StatusCampaign>> {
     this.handlerErrNotIdCampaign();
-    const externalUrl = 'api/v2/campaigns/' + this.id.value + '/';
-    const responseStatus = await this.conn.api_conn?.get(externalUrl).then((d: IHttpResponse) => d.data);
+    const responseStatus = await this.getFullDataCampaign(this.id);
 
-    const fullDataCampaign = new FullDataCampaign(responseStatus);
-
-    if (fullDataCampaign?.value.id) {
+    if (responseStatus && responseStatus?.value?.campaign?.id) {
       return new ResponceApiNetwork({
         code: RESPONSE_CODES.SUCCESS,
         message: 'OK',
-        data: this.prepareStatus(fullDataCampaign)
+        data: this.prepareStatus(responseStatus)
       });
     } else {
       return new ResponceApiNetwork({
@@ -606,35 +458,46 @@ export default class ExoclickCampaign extends Campaign {
   async updatePlacements(data: PlacementCampaign): Promise<ResponceApiNetwork<Campaign>> {
     this.handlerErrNotIdCampaign();
     const _val = data.value;
-    const list = _val?.list;
+    const list = [...new Set(_val?.list ?? [])];
     const type = _val?.type;
-    const typeList = !type ? 'targeted' : 'blocked';
-    const externalUrl = `v1.0/api/client/campaigns/${this.id?.value}/${typeList}/zone/`;
-
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-
-    const responseSetPlacement = await this.conn.api_conn?.put(externalUrl, JSON.stringify(list), {
-      headers
+    const typeList = !type ? 1 : 0;
+    const status = 0;
+    const updateData = new UpdateDataCampaign({
+      id: Number(this.id.value),
+      status,
+      zones: list.map((m: IUpdateDataCampaignZone) => {
+        return {
+          idzone: Number(m),
+          price: 0
+        };
+      }),
+      zone_targeting: {
+        type: typeList,
+        network_selection: 0,
+        partner_networks: 0
+      }
     });
-    const dataCamp = responseSetPlacement?.data;
-    const status = responseSetPlacement?.status;
+    const responseSetPlacement = await this.updateRaw(updateData);
+    // const dataCamp = responseSetPlacement?.data;
+    // const status = responseSetPlacement?.status;
 
-    if (dataCamp.id) {
-      const fullDataCampaign = new FullDataCampaign(dataCamp);
+    if (responseSetPlacement?.[0]?.includes('Campaign successfully updated')) {
       this.setPlacementsData(
         new PlacementCampaign({
           list: list ?? [],
           type: type ?? false
         })
-      ).setStatus(new StatusCampaign(dataCamp.status));
+      )
+        /**
+         * TODO: сделать запрос на получение актуального статуса
+         */
+        .setStatus(new StatusCampaign('working'));
 
       return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
     } else {
       return new ResponceApiNetwork({
         code: Number(status),
-        message: JSON.stringify(dataCamp)
+        message: JSON.stringify(responseSetPlacement)
       });
     }
   }
@@ -644,31 +507,6 @@ export default class ExoclickCampaign extends Campaign {
    */
   async remove(): Promise<ResponceApiNetwork> {
     this.handlerErrNotIdCampaign();
-    // new Logger(campaignId).setDescription('Clickadu removeCampaign start').log();
-    //Получаем статус кампании
-
-    if (!this.status?.value) {
-      const responseGetStatus = await this.getStatus().then((d: ResponceApiNetwork) => d.value);
-      if (responseGetStatus?.data instanceof StatusCampaign) {
-        this.status = responseGetStatus.data;
-      } else {
-        return new ResponceApiNetwork({
-          code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-          message: String(responseGetStatus?.message)
-        });
-      }
-    }
-
-    if (this.status.value === 'archived') {
-      return new ResponceApiNetwork({ code: RESPONSE_CODES.BAD_REQUEST, message: 'Campaign already removed' });
-    }
-
-    if (this.status.value !== 'moderation') {
-      await this.stop();
-    } else {
-      await this.cancelModeration();
-    }
-    //Удаляем кампанию
     return await this.removeUnit(this.id);
   }
 
@@ -678,17 +516,19 @@ export default class ExoclickCampaign extends Campaign {
    * @returns
    */
   private async removeUnit(id: IdCampaign): Promise<ResponceApiNetwork> {
-    const listCampaignsFromRemove = { campaignIds: [id.value] };
-    const externalUrl = 'api/v1.0/client/campaigns/to_archive/';
+    const dataDeleteCampaign = {
+      campaign_ids: [id.value]
+    };
+    const externalUrl = 'campaigns/delete';
     const headers = {
       'Content-Type': 'application/json'
     };
-    const responseRemove = await this.conn.admin_conn
-      ?.put(externalUrl, listCampaignsFromRemove, {
+    const responseRemove = await this.conn.api_conn
+      ?.put(externalUrl, dataDeleteCampaign, {
         headers
       })
       .then((resp: IHttpResponse) => resp.data);
-    const success = responseRemove && responseRemove.result && responseRemove.result === 'success';
+    const success = responseRemove && responseRemove.message && responseRemove.message.includes('Campaigns deleted');
     return new ResponceApiNetwork({
       code: success ? RESPONSE_CODES.SUCCESS : RESPONSE_CODES.INTERNAL_SERVER_ERROR,
       message: success ? 'OK' : JSON.stringify(responseRemove)
@@ -699,28 +539,18 @@ export default class ExoclickCampaign extends Campaign {
    * Запуск кампании
    */
   async start(): Promise<ResponceApiNetwork> {
-    const externalUrl = `api/v2/campaign/${this.id?.value}/change_status/start/`;
+    this.handlerErrNotIdCampaign();
+    const updateData = new UpdateDataCampaign({
+      id: Number(this.id.value),
+      status: 1
+    });
+    const getUpdateCampaign = await this.updateRaw(updateData);
 
-    const responseResume = await this.conn.api_conn?.post(externalUrl, {}).then((resp: IHttpResponse) => resp.data);
-    // new Logger({
-    //     url,
-    //     headers,
-    //     data: {},
-    //     response: responseResume
-    // })
-    //     .setTag('resumeCampaign')
-    //     .setDescription('Запуск кампании в рекл сети')
-    //     .setNetwork(this.constructor.name.toLowerCase())
-    //     .setCampaignId(campaignId)
-    //     .log();
-
-    const success =
-      (responseResume && responseResume.result && responseResume.result === 'success') ||
-      (responseResume.error && responseResume.error.message.indexOf('rong status for advertiser') !== -1);
+    const success = getUpdateCampaign?.[0].includes('Campaign successfully updated');
 
     return new ResponceApiNetwork({
       code: success ? RESPONSE_CODES.SUCCESS : RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-      message: success ? 'OK' : JSON.stringify(responseResume)
+      message: success ? 'OK' : JSON.stringify(getUpdateCampaign)
     });
   }
 
@@ -729,16 +559,17 @@ export default class ExoclickCampaign extends Campaign {
    */
   async stop(): Promise<ResponceApiNetwork> {
     this.handlerErrNotIdCampaign();
-    const externalUrl = `api/v2/campaign/${this.id?.value}/change_status/stop/`;
-    const responseStopped = await this.conn.api_conn?.post(externalUrl, {}).then((resp: IHttpResponse) => resp.data);
+    const updateData = new UpdateDataCampaign({
+      id: Number(this.id.value),
+      status: 0
+    });
+    const getUpdateCampaign = await this.updateRaw(updateData);
 
-    const success =
-      (responseStopped && responseStopped.result && responseStopped.result === 'success') ||
-      responseStopped.error.message?.indexOf('Got: stop') !== -1;
+    const success = getUpdateCampaign?.[0].includes('Campaign successfully updated');
 
     return new ResponceApiNetwork({
-      code: success ? RESPONSE_CODES.SUCCESS : RESPONSE_CODES.BAD_REQUEST,
-      message: success ? 'OK' : JSON.stringify(responseStopped)
+      code: success ? RESPONSE_CODES.SUCCESS : RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+      message: success ? 'OK' : JSON.stringify(getUpdateCampaign)
     });
   }
 
@@ -747,6 +578,7 @@ export default class ExoclickCampaign extends Campaign {
    * @param campaignId
    * @returns
    */
+  /*
   private async cancelModeration(): Promise<boolean> {
     const externalUrl = 'api/v1.0/client/campaigns/cancel/';
     const listCampaignsFromCancelModeration = { campaignIds: [this.id?.value] };
@@ -771,5 +603,5 @@ export default class ExoclickCampaign extends Campaign {
     //     .setCampaignId(campaignId)
     //     .log();
     return responseCancelModeration && responseCancelModeration.result && responseCancelModeration.result === 'success';
-  }
+  }*/
 }

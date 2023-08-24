@@ -1,6 +1,6 @@
-import Clickadu from './models/clickadu/Clickadu';
-import ClickaduAccount from './models/clickadu/ClickaduAccount';
-import ClickaduCampaign from './models/clickadu/ClickaduCampaign';
+import Exoclick from './models/exoclick/Exoclick';
+import ExoclickAccount from './models/exoclick/ExoclickAccount';
+import ExoclickCampaign from './models/exoclick/ExoclickCampaign';
 
 import {
   TemplateIdCampaign,
@@ -22,10 +22,10 @@ export {
   CountryCampaign as CountryCampaign,
   BidCampaign as BidCampaign,
   IdCampaign as IdCampaign,
-  ClickaduCampaign as Campaign,
+  ExoclickCampaign as Campaign,
   PlacementCampaign as PlacementCampaign,
   ScheduleCampaign as ScheduleCampaign,
-  ClickaduAccount as Account
+  ExoclickAccount as Account
 };
 
-export default Clickadu;
+export default Exoclick;
