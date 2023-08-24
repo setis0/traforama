@@ -81,10 +81,11 @@ export default class ExoclickCampaign extends Campaign {
      */
 
     const newLIbraryURL = await this.createLIbraryURL(new UpdateUrlLlibrary({ url: target_url.value }));
-    if (!newLIbraryURL?.value?.id) {
+    if (!newLIbraryURL?.[0]?.value?.id) {
+      await this.removeUnit(newIdCampaign);
       return new ResponceApiNetwork({
         code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        message: 'Error createLIbraryURL'
+        message: JSON.stringify(newLIbraryURL)
       });
     }
 
@@ -94,7 +95,7 @@ export default class ExoclickCampaign extends Campaign {
     const reultUpdateVariationCampaign = await this.updateVariationCampaign(
       newIdCampaign.value,
       fullDataCampaign.value.variations[0].idvariation,
-      new UpdateVariationCampaign({ id_library_url: newLIbraryURL.value.id })
+      new UpdateVariationCampaign({ id_library_url: newLIbraryURL?.[0]?.value?.id })
     );
 
     new Logger(reultUpdateVariationCampaign).setTag('updateVariationCampaign').log();
@@ -103,10 +104,15 @@ export default class ExoclickCampaign extends Campaign {
      * ОБновляем кампанию
      */
     const updateDataCampaign = new UpdateDataCampaign({
-      id: Number(newIdCampaign),
+      id: Number(newIdCampaign.value),
       name: String(name.value),
       status: 1,
-      countries: { type: 'targeted', elements: [{ country: String(country.value) }] },
+      countries: {
+        type: 'targeted',
+        elements: [
+          { country: this.conn?.network?.collections?.countries?.find((f) => f.iso2 === String(country.value))?.iso3 }
+        ]
+      },
       pricing: { model: fullDataCampaign.value.campaign.pricing_model, price: Number(bid.value) * 100 }
     });
 
@@ -115,7 +121,7 @@ export default class ExoclickCampaign extends Campaign {
 
     const responseCreateCampaign = await this.updateRaw(updateDataCampaign);
 
-    if (responseCreateCampaign?.[0].includes('Campaign successfully updated')) {
+    if (responseCreateCampaign?.[0]?.includes('Campaign successfully updated')) {
       this.setId(newIdCampaign)
         .setName(name)
         .setTemplateId(template_id)
@@ -322,15 +328,17 @@ export default class ExoclickCampaign extends Campaign {
    * @param data
    * @returns
    */
-  private async createLIbraryURL(data: UpdateUrlLlibrary): Promise<ResultUpdateUrlLlibrary> {
-    const externalUrl = `library/url/`;
-    return await this.conn.api_conn
+  private async createLIbraryURL(data: UpdateUrlLlibrary): Promise<ResultUpdateUrlLlibrary[]> {
+    const externalUrl = `library/url`;
+    const createdLIbrry = await this.conn.api_conn
       ?.post(`${externalUrl}`, data.value, {
         headers: {
           'Content-Type': 'application/json'
         }
       })
       .then((d: IHttpResponse) => d.data);
+
+    return createdLIbrry.map((m: any) => new ResultUpdateUrlLlibrary(m));
   }
 
   /**
@@ -408,9 +416,7 @@ export default class ExoclickCampaign extends Campaign {
   private async clone(campaignId: IdCampaign): Promise<IdCampaign | false> {
     const externalUrlClone = `campaigns/${campaignId.value}/copy`;
     // Клонируем кампанию
-    const cloneCampaignId = await this.conn.admin_conn
-      ?.put(`${externalUrlClone}`, {})
-      .then((d: IHttpResponse) => d.data);
+    const cloneCampaignId = await this.conn.api_conn?.put(`${externalUrlClone}`, {}).then((d: IHttpResponse) => d.data);
 
     if (cloneCampaignId && cloneCampaignId.idcampaign) {
       // Дёргаем ID новосозанной кампании
