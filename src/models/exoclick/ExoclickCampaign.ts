@@ -4,7 +4,8 @@ import { ErrorExoclick } from './api/Errors';
 import FullDataCampaign, {
   IResultFullDataCampaignCountryItem,
   IResultFullDataCampaignVariation,
-  IUpdateDataCampaignDayParting
+  IUpdateDataCampaignDayParting,
+  IUpdateDataCampaignDayPartingItem
 } from './api/FullDataCampaign';
 import { Logger } from '@atsorganization/ats-lib-logger';
 
@@ -175,6 +176,7 @@ export default class ExoclickCampaign extends Campaign {
       status: 1,
       day_parting: this.reverseTransformSchedule(schedule)
     });
+
     const responseUpdateCampaign = await this.updateRaw(dataUpdate);
 
     if (responseUpdateCampaign?.[0]?.includes('Campaign successfully updated')) {
@@ -200,7 +202,7 @@ export default class ExoclickCampaign extends Campaign {
    * @param rawTimeData
    * @returns
    */
-  private transformSchedule(rawTimeData: IUpdateDataCampaignDayParting[]): ScheduleCampaign {
+  private transformSchedule(rawTimeData: IUpdateDataCampaignDayPartingItem[]): ScheduleCampaign {
     const days = {
       1: 'Mon',
       2: 'Tue',
@@ -214,7 +216,7 @@ export default class ExoclickCampaign extends Campaign {
     return new ScheduleCampaign(
       rawTimeData.length
         ? rawTimeData.reduce(
-            (ac: any, el: IUpdateDataCampaignDayParting) =>
+            (ac: any, el: IUpdateDataCampaignDayPartingItem) =>
               ac.concat(el.hours.map((m: any) => days[el.day] + (m < 10 ? `0${m}` : m))),
             []
           )
@@ -227,7 +229,7 @@ export default class ExoclickCampaign extends Campaign {
    * @param rawTimeData
    * @returns
    */
-  private reverseTransformSchedule(rawTimeData: ScheduleCampaign): IUpdateDataCampaignDayParting[] {
+  private reverseTransformSchedule(rawTimeData: ScheduleCampaign): IUpdateDataCampaignDayParting {
     const days: { [key: string]: number } = {
       Mon: 1,
       Tue: 2,
@@ -238,26 +240,29 @@ export default class ExoclickCampaign extends Campaign {
       Sun: 7
     };
 
-    return rawTimeData.value.reduce((acc: any, item: any) => {
-      const day = days[item.substring(0, 3)]; // Получаем первые 3 символа (Mon, Tue, и так далее)
-      const hours = Number(item.substring(3)); // Получаем оставшиеся символы (часы) и преобразуем их в число
+    return {
+      timezone: 'Europe/Moscow',
+      parting: rawTimeData.value.reduce((acc: any, item: any) => {
+        const day = days[item.substring(0, 3)]; // Получаем первые 3 символа (Mon, Tue, и так далее)
+        const hours = Number(item.substring(3)); // Получаем оставшиеся символы (часы) и преобразуем их в число
 
-      // Проверяем, существует ли уже группа с таким днем
-      const existingGroup = acc.find((group: any) => Number(group.day) === Number(day));
+        // Проверяем, существует ли уже группа с таким днем
+        const existingGroup = acc.find((group: any) => Number(group.day) === Number(day));
 
-      if (existingGroup) {
-        // Если группа уже существует, добавляем часы к ней
-        existingGroup.hours.push(hours);
-      } else {
-        // Если группы еще нет, создаем новую группу
-        acc.push({
-          day,
-          hours: [hours]
-        });
-      }
+        if (existingGroup) {
+          // Если группа уже существует, добавляем часы к ней
+          existingGroup.hours.push(hours);
+        } else {
+          // Если группы еще нет, создаем новую группу
+          acc.push({
+            day,
+            hours: [hours]
+          });
+        }
 
-      return acc;
-    }, []);
+        return acc;
+      }, [])
+    };
   }
 
   /**
@@ -282,9 +287,9 @@ export default class ExoclickCampaign extends Campaign {
       variations
     } = fullDataResponse.value;
     const { url } = variations[0];
-    let iso2 = '';
+    let idCountry = -1;
     if (CountryTargeted?.[0]) {
-      iso2 = CountryTargeted?.[0]?.iso2;
+      idCountry = CountryTargeted?.[0]?.id;
     }
 
     const actual_list = { list: zones.map((m) => m.idzone), type: zone_targeting.type };
@@ -292,8 +297,14 @@ export default class ExoclickCampaign extends Campaign {
     this.setId(new IdCampaign(id))
       .setName(new NameCampaign(name))
       .setTargetUrl(new TargetUrlCampaign(url))
-      .setCountry(new CountryCampaign(iso2))
-      .setBid(new BidCampaign(price))
+      .setCountry(
+        new CountryCampaign(
+          this.conn.network?.collections?.countries?.find(
+            (f: IResultFullDataCampaignCountryItem) => Number(f.id) === Number(idCountry)
+          )?.iso2
+        )
+      )
+      .setBid(new BidCampaign(price / 100))
       .setPlacementsData(
         new PlacementCampaign({
           list: actual_list?.list?.map((m: any) => m?.id) ?? [],
@@ -348,7 +359,7 @@ export default class ExoclickCampaign extends Campaign {
    * @returns
    */
   protected async updateRaw(data: UpdateDataCampaign): Promise<any> {
-    const externalUrl = `campaigns/${data.value.id}/`;
+    const externalUrl = `campaigns/${data.value.id}`;
     return await this.conn.api_conn
       ?.put(`${externalUrl}`, data.value, {
         headers: {
@@ -364,10 +375,11 @@ export default class ExoclickCampaign extends Campaign {
    * @returns
    */
   private async getFullDataCampaign(campaignId: IdCampaign): Promise<FullDataCampaign | null> {
-    const externalUrl = `campaigns/${campaignId.value}/`;
+    const externalUrl = `campaigns/${campaignId.value}`;
     let data: FullDataCampaign | null = null;
     if (this.conn.api_conn) {
       data = await this.conn.api_conn.get(externalUrl).then((resp: IHttpResponse) => {
+        // new Logger(resp.data).setTag('getFullDataCampaign').log();
         const r = resp.data.result;
         const campaign = r.campaign;
         const countries = r.countries;
@@ -384,25 +396,6 @@ export default class ExoclickCampaign extends Campaign {
           day_parting
         });
       });
-
-      // new Logger({
-      //     url,
-      //     headers,
-      //     data
-      // })
-      //     .setTag('getFullDataCampaign')
-      //     .setDescription('Получение данных кампании из рекл сети')
-      //     .setNetwork(this.constructor.name.toLowerCase())
-      //     .setCampaignId(campaignId)
-      //     .log();
-
-      // this.customQuery({
-      //     url: `${this.clientData.baseUrl}${externalUrl}`,
-      //     method: 'get',
-      //     headers: {
-      //         'Authorization': 'Bearer ' + this.clientData.token
-      //     },
-      // }, this);
     }
     return data;
   }

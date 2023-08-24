@@ -29,7 +29,7 @@ interface IUpdateDataCampaign {
   pricing?: IUpdateDataCampaignPricing;
   zones?: IUpdateDataCampaignZone[];
   zone_targeting?: IUpdateDataCampaignZoneTargeting;
-  day_parting?: IUpdateDataCampaignDayParting[];
+  day_parting?: IUpdateDataCampaignDayParting;
 }
 
 export default class UpdateDataCampaign {

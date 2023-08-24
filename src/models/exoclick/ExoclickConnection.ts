@@ -1,9 +1,3 @@
-import ClickaduCampaign from './ExoclickCampaign';
-import axios from 'axios';
-import RuCaptcha from '../../services/RuCaptcha';
-import { RU_CAPTCHA_KEY } from '../../consts';
-
-import ClickaduAccount from './ExoclickAccount';
 import {
   NetworkConnection,
   Campaign,
@@ -12,30 +6,67 @@ import {
   IHttpResponse,
   Account
 } from '@atsorganization/ats-lib-ntwk-common';
+import ExoclickCampaign from './ExoclickCampaign';
+import ExcoclickAccount from './ExoclickAccount';
+import { Logger } from '@atsorganization/ats-lib-logger';
 
 export default class ExoclickConnection extends NetworkConnection {
+  /**
+   * Авторизация
+   * @returns
+   */
+  protected async auth(): Promise<void> {
+    const data = { api_token: this.network.api_key };
+    const response: any = await HttpInstance.request({
+      url: this.network.base_url_api + 'login',
+      method: 'POST',
+      baseUrl: this.network.base_url_api,
+      headers: { 'Content-Type': 'application/json' },
+      data
+    });
+    const token = response.data.token;
+    new Logger({ token }).setNetwork(this.network.name).setTag('token update in auth exoclick').log();
+    return token;
+  }
+
+  /**
+   * Инициализация коллекций
+   */
+  protected async initColletions(): Promise<void> {
+    if (this.network.collections && this.api_conn) {
+      this.network.collections.countries = await this.api_conn
+        ?.get('collections/countries?limit=10000')
+        .then((r: IHttpResponse) => r.data.result);
+      this.network.collections.timezones = await this.api_conn
+        ?.get('collections/timezones')
+        .then((r: IHttpResponse) => r.data.result);
+    }
+  }
+
   /**
    * Открытие соединения
    * @returns
    */
   async open(): Promise<NetworkConnection> {
-    //устанока соединения через АПИ
+    const token = await this.auth();
+    // устанока соединения через АПИ
     this.api_conn = new HttpInstance({
       baseUrl: this.network?.base_url_api,
       headers: {
-        Authorization: 'Bearer ' + `${this.network?.api_key}`
+        Authorization: 'Bearer ' + `${token}`
       }
     });
     this.keepAlive();
+    await this.initColletions();
     return this;
   }
 
   getCampaign(): Campaign {
-    return new ClickaduCampaign(this);
+    return new ExoclickCampaign(this);
   }
 
   getAccount(): Account {
-    return new ClickaduAccount(this);
+    return new ExcoclickAccount(this);
   }
 
   /**

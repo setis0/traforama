@@ -21,6 +21,11 @@ interface IResultFullDataCampaignRaw {
   price: number;
 }
 
+export interface IResultFullDataCampaignTimezoneItem {
+  name: string;
+  country_iso3: string;
+}
+
 export interface IResultFullDataCampaignCountryItem {
   id: number;
   short_name: string;
@@ -36,9 +41,14 @@ export interface IResultFullDataCampaignCountry {
   blocked?: IResultFullDataCampaignCountryItem[];
 }
 
-export interface IUpdateDataCampaignDayParting {
+export interface IUpdateDataCampaignDayPartingItem {
   day: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   hours: number[];
+}
+
+export interface IUpdateDataCampaignDayParting {
+  timezone: string;
+  parting: IUpdateDataCampaignDayPartingItem[];
 }
 
 interface IResultFullDataCampaign {
@@ -47,7 +57,7 @@ interface IResultFullDataCampaign {
   countries: IResultFullDataCampaignCountry;
   zones: IUpdateDataCampaignZone[];
   zone_targeting: IUpdateDataCampaignZoneTargeting;
-  day_parting: IUpdateDataCampaignDayParting[];
+  day_parting: IUpdateDataCampaignDayPartingItem[];
 }
 
 export default class FullDataCampaign {
