@@ -12,7 +12,7 @@ export default class Exoclick extends Network {
     super(login, password, api_key);
     this.base_url_api = 'https://api.exoclick.com/v2/';
     this.base_url_admin = 'https://api.exoclick.com/v2/';
-    this.name = 'exoc{lick';
+    this.name = 'exoclick';
     this.collections = { countries: [], timezones: [] };
   }
   async createConnection(): Promise<NetworkConnection> {
