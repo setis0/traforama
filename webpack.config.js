@@ -3,7 +3,7 @@ var webpack = require('webpack'),
   // , TerserPlugin = require("terser-webpack-plugin")
   env = process.env.WEBPACK_ENV;
 console.log(env);
-var libraryName = 'ats-lib-exoclick',
+var libraryName = 'ats-lib-adxad',
   outputFile = '',
   plugins = [];
 // configure output for proper build type

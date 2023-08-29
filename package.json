@@ -1,9 +1,9 @@
 {
-  "name": "@atsorganization/ats-lib-exoclick",
-  "version": "1.0.6",
-  "description": "Library connection API AdNetwork exoclick",
+  "name": "@atsorganization/ats-lib-adxad",
+  "version": "1.0.1",
+  "description": "Library connection API AdNetwork adxad",
   "main": "lib/index.js",
-  "repository": "https://github.com/ATSOrganization/ATS-lib-exoclick",
+  "repository": "https://github.com/ATSOrganization/ATS-lib-adxad",
   "directories": {
     "lib": "lib",
     "test": "test"

@@ -1,6 +1,6 @@
-import Exoclick from './models/exoclick/Exoclick';
-import ExoclickAccount from './models/exoclick/ExoclickAccount';
-import ExoclickCampaign from './models/exoclick/ExoclickCampaign';
+import AdxAd from './models/adxad/AdxAd';
+import AdxAdAccount from './models/adxad/AdxAdAccount';
+import AdxAdCampaign from './models/adxad/AdxAdCampaign';
 
 import {
   TemplateIdCampaign,
@@ -22,10 +22,10 @@ export {
   CountryCampaign as CountryCampaign,
   BidCampaign as BidCampaign,
   IdCampaign as IdCampaign,
-  ExoclickCampaign as Campaign,
+  AdxAdCampaign as Campaign,
   PlacementCampaign as PlacementCampaign,
   ScheduleCampaign as ScheduleCampaign,
-  ExoclickAccount as Account
+  AdxAdAccount as Account
 };
 
-export default Exoclick;
+export default AdxAd;
