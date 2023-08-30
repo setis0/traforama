@@ -137,7 +137,7 @@ export default class AdxAdCampaign extends Campaign {
     const { status: statusCampaign, creatives } = data.value;
     const { status: statusCreative } = creatives[0];
     // Если у креатива статус можерация то используем егго статус для определения статуса каспании
-    const status = statusCreative === 2 ? statusCreative : statusCampaign;
+    const status = [2, 3].includes(statusCreative) ? statusCreative : statusCampaign;
     return new StatusCampaign(
       status === 1 ? 'working' : status === 0 ? 'stopped' : status === 2 ? 'moderation' : 'rejected'
     );
