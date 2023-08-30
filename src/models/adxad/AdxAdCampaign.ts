@@ -489,6 +489,7 @@ export default class AdxAdCampaign extends Campaign {
    * @returns
    */
   async minBid(): Promise<ResponceApiNetwork<BidCampaign>> {
+    this.handlerErrNotCountryCampaign();
     return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: new BidCampaign(0.2) });
   }
 
