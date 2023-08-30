@@ -15,7 +15,8 @@ import {
   ICampaign,
   CountryCampaign,
   Campaign,
-  BidCampaign
+  BidCampaign,
+  StatsRaw
 } from '@atsorganization/ats-lib-ntwk-common';
 import { IAddDataCampaign, IUpdateDataCampaignZone } from './api/AddDataCampaign';
 
@@ -25,6 +26,7 @@ import AddCreative from './api/AddCreative';
 import ResultAddCreative from './api/ResultAddCreative';
 import AddDataCampaign from './api/AddDataCampaign';
 import UpdateDataCampaign from './api/UpdateDataCampaign';
+import FullDataCampaignStats, { IResultFullDataCampaignStatsDataItem } from './api/FullDataCampaignStats';
 
 export default class AdxAdCampaign extends Campaign {
   /**
@@ -483,34 +485,80 @@ export default class AdxAdCampaign extends Campaign {
   }
 
   /**
-   * Отмена модерации
-   * @param campaignId
+   * Мин ставка
    * @returns
    */
-  /*
-  private async cancelModeration(): Promise<boolean> {
-    const externalUrl = 'api/v1.0/client/campaigns/cancel/';
-    const listCampaignsFromCancelModeration = { campaignIds: [this.id?.value] };
+  async minBid(): Promise<ResponceApiNetwork<BidCampaign>> {
+    return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: new BidCampaign(0.2) });
+  }
 
-    const headers = {
-      'Content-Type': 'application/json'
+  /**
+   * Статистика
+   * @param date
+   */
+  async stats(date: string): Promise<ResponceApiNetwork<StatsRaw>> {
+    this.handlerErrNotIdCampaign();
+    const dateComponents = date.split('-');
+    const datePrepare = dateComponents[1] + '/' + dateComponents[2] + '/' + dateComponents[0];
+    /**
+     * ПОлучение данных
+     * @param page
+     * @returns
+     */
+    const fwtchData = async (page: number): Promise<FullDataCampaignStats | null> => {
+      const externalUrl = `report?groups=spot&filter[from]=${datePrepare}&filter[to]=${datePrepare}&filter[campaign][]=${this.id.value}&page=${page}&limit=3000`;
+      let resGetStats = null;
+      if (this.conn.api_conn) {
+        resGetStats = await this.conn.api_conn
+          ?.get(externalUrl)
+          .then((d: IHttpResponse) => new FullDataCampaignStats(d.data));
+      }
+      return resGetStats;
     };
-    const responseCancelModeration = await this.conn.admin_conn
-      ?.put(externalUrl, listCampaignsFromCancelModeration, {
-        headers: headers
-      })
-      .then((resp: IHttpResponse) => resp.data);
 
-    // new Logger({
-    //     responseCancelModeration,
-    //     url,
-    //     data: listCampaignsFromCancelModeration,
-    //     headers,
-    // })
-    //     .setTag('cancelModeration')
-    //     .setNetwork(this.constructor.name.toLowerCase())
-    //     .setCampaignId(campaignId)
-    //     .log();
-    return responseCancelModeration && responseCancelModeration.result && responseCancelModeration.result === 'success';
-  }*/
+    let page = 1;
+    const allData: IResultFullDataCampaignStatsDataItem[] = [];
+    while (true) {
+      try {
+        const dataStats = await fwtchData(page);
+        if (!dataStats) {
+          return new ResponceApiNetwork({
+            code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+            message: 'error fwtchData stats'
+          });
+        }
+        if (!dataStats?.value.data.length) {
+          // No more data, break the loop
+          break;
+        }
+        allData.push(...dataStats.value.data);
+        page++;
+      } catch (error) {
+        // Handle the error if needed
+        return new ResponceApiNetwork({
+          code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+          message: 'error fwtchData stats'
+        });
+      }
+    }
+
+    const data = new StatsRaw(
+      allData.map((m: IResultFullDataCampaignStatsDataItem) => {
+        return {
+          report_date: date,
+          site_id: m.spot.id,
+          impressions: m.impressions,
+          cost: m.cost,
+          source_id: 0,
+          bundle_id: 0,
+          id_campaign: String(this.id.value)
+        };
+      })
+    );
+    return new ResponceApiNetwork({
+      code: RESPONSE_CODES.SUCCESS,
+      message: 'OK',
+      data
+    });
+  }
 }

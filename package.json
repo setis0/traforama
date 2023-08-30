@@ -1,6 +1,6 @@
 {
   "name": "@atsorganization/ats-lib-adxad",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Library connection API AdNetwork adxad",
   "main": "lib/index.js",
   "repository": "https://github.com/ATSOrganization/ATS-lib-adxad",
