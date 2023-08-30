@@ -103,7 +103,7 @@ export default class AdxAdCampaign extends Campaign {
     );
 
     if (newCreative?.value?.id) {
-      this.setId(responseCreateCampaign?.id)
+      this.setId(new IdCampaign(responseCreateCampaign?.id))
         .setName(name)
         .setTemplateId(template_id)
         .setBid(bid)
