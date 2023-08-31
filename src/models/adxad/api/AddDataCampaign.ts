@@ -23,6 +23,7 @@ export interface IAddDataCampaign {
   format: string;
   mediaType: string;
   freqCap: number;
+  dynamicBid: boolean;
   clickUrl: string;
   bid: number;
   categories: string[];
@@ -47,6 +48,11 @@ export default class AddDataCampaign {
 
   setBid(bid: number): AddDataCampaign {
     this._value.bid = bid;
+    return this;
+  }
+
+  setDynamicBid(dynamicBid: boolean): AddDataCampaign {
+    this._value.dynamicBid = dynamicBid;
     return this;
   }
 

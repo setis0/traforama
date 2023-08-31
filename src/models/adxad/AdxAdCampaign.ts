@@ -77,6 +77,7 @@ export default class AdxAdCampaign extends Campaign {
     const addDataCampaign = new AddDataCampaign({
       ...fullDataCampaign.value,
       format: '',
+      dynamicBid: true,
       segments: segments ?? [],
       project: project.id,
       mediaType: mediaType.id
@@ -372,6 +373,7 @@ export default class AdxAdCampaign extends Campaign {
       ...fullDataCampaign.value,
       id: String(this.id.value),
       format: '',
+      dynamicBid: true,
       segments: segments ?? [],
       project: project.id,
       mediaType: mediaType.id
