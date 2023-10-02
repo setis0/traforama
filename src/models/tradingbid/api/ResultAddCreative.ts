@@ -1,6 +1,8 @@
+import { IResultFullDataCreativeData } from './FullDataCampaign';
+
 interface IResultAddCreative {
-  status: string;
-  id: string;
+  code: number;
+  data: IResultFullDataCreativeData;
 }
 
 export default class ResultAddCreative {

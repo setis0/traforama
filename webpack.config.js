@@ -1,9 +1,10 @@
+const Dotenv = require('dotenv-webpack');
 var webpack = require('webpack'),
   path = require('path'),
   // , TerserPlugin = require("terser-webpack-plugin")
   env = process.env.WEBPACK_ENV;
 console.log(env);
-var libraryName = 'ats-lib-adxad',
+var libraryName = 'ats-lib-trendingbid',
   outputFile = '',
   plugins = [];
 // configure output for proper build type
@@ -15,6 +16,7 @@ if (env === 'build') {
 }
 
 module.exports = {
+  plugins: [new Dotenv()],
   entry: path.join(__dirname, 'src', 'index.ts'),
   output: {
     path: path.join(__dirname, 'lib'),
@@ -42,7 +44,7 @@ module.exports = {
       }
     ]
   },
-  externals: ['axios', '@atsorganization/ats-lib-ntwk-common', '@atsorganization/ats-lib-logger'],
+  externals: ['qs', 'axios', '@atsorganization/ats-lib-ntwk-common', '@atsorganization/ats-lib-logger'],
   resolve: {
     modules: [path.resolve('./src')],
     extensions: ['.js', '.ts']

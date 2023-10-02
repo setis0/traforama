@@ -1,5 +1,10 @@
 import { RESPONSE_CODES } from '../../consts';
-import FullDataCampaign, { IResultFullDataCampaign, IUpdateDataCampaignSchedule } from './api/FullDataCampaign';
+import FullDataCampaign, {
+  IResultFullDataCampaign,
+  IResultFullDataCampaignDataTargeting,
+  IResultFullDataCampaignDataTargetingsGeo,
+  IResultFullDataCampaignDataTargetingsTime
+} from './api/FullDataCampaign';
 import { Logger } from '@atsorganization/ats-lib-logger';
 
 import {
@@ -18,17 +23,26 @@ import {
   BidCampaign,
   StatsRaw
 } from '@atsorganization/ats-lib-ntwk-common';
-import { IAddDataCampaign, IUpdateDataCampaignZone } from './api/AddDataCampaign';
+import { IAddDataCampaign } from './api/AddDataCampaign';
 
 import ResultUpdateUrlLlibrary from './api/ResultAddCreative';
-import UpdateVariationCampaign from './api/UpdateVariationCampaign';
+
 import AddCreative from './api/AddCreative';
 import ResultAddCreative from './api/ResultAddCreative';
 import AddDataCampaign from './api/AddDataCampaign';
-import UpdateDataCampaign from './api/UpdateDataCampaign';
+import UpdateDataCampaign from './api/UpdateDataCreative';
 import FullDataCampaignStats, { IResultFullDataCampaignStatsDataItem } from './api/FullDataCampaignStats';
 
-export default class AdxAdCampaign extends Campaign {
+import AddDataCreative from './api/AddDataCreative';
+import { IResultFullDataCampaignCountryItem } from './TradingBid';
+import ResultRemoveCampaign from './api/ResultSwitchStatusCampaign';
+import RemoveDataCampaign, { status } from './api/SwitchStatusDataCampaign';
+import UpdateDataCreative from './api/UpdateDataCreative';
+import ResponseAddcampaign from './api/ResponseAddcampaign';
+import SwitchStatusDataCampaign from './api/SwitchStatusDataCampaign';
+import ResultSwitchStatusCampaign from './api/ResultSwitchStatusCampaign';
+
+export default class TrendingBidCampaign extends Campaign {
   /**
    * Обвноление кампании
    * доступны следующие свойства
@@ -72,39 +86,39 @@ export default class AdxAdCampaign extends Campaign {
     /**
      * Создание кампании
      */
-    const { project, mediaType, segments } = fullDataCampaign.value;
-
-    const addDataCampaign = new AddDataCampaign({
-      ...fullDataCampaign.value,
-      format: '',
-      dynamicBid: true,
-      segments: segments ?? [],
-      project: project.id,
-      mediaType: mediaType.id
-    })
-      .setCountry(String(country.value))
-      .setBid(Number(bid.value))
+    const addDataCampaign = AddDataCampaign.fromFullDataCampaign(fullDataCampaign)
       .setName(String(name.value))
-      .prepare();
+      .setTargeturl(target_url.value);
 
     const responseCreateCampaign = await this.addRaw(addDataCampaign);
 
-    if (!responseCreateCampaign?.id) {
+    if (responseCreateCampaign?.value.code !== 200) {
       return new ResponceApiNetwork({
         code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
         message: JSON.stringify(responseCreateCampaign) + ' add campaigns'
       });
     }
+    const newCampId = responseCreateCampaign?.value.data.id;
 
-    const newCreative = await this.createCreative(
-      new AddCreative({
-        campaignId: responseCreateCampaign?.id,
-        creative: { clickUrl: target_url.value, name: String(name.value) }
-      })
+    const NeedCountry = this.conn.network.collections?.countries?.find(
+      (f: any) => String(f.code) === String(country.value)
     );
 
-    if (newCreative?.value?.id) {
-      this.setId(new IdCampaign(responseCreateCampaign?.id))
+    const newCreative = await this.createCreative(
+      AddDataCreative.fromFullDataCampaign(fullDataCampaign)
+        .setName(String(name.value))
+        .setTargeturl(target_url.value)
+        .setCountry({
+          id: NeedCountry.value,
+          title: NeedCountry.label,
+          titleEn: NeedCountry.titleEn
+        })
+        .setBid(Number(bid.value) / 1000)
+        .setCampaignId(newCampId)
+    );
+
+    if (newCreative?.value.code === 200) {
+      this.setId(new IdCampaign(newCampId))
         .setName(name)
         .setTemplateId(template_id)
         .setBid(bid)
@@ -121,7 +135,7 @@ export default class AdxAdCampaign extends Campaign {
       //         .setBundleId(dataCampaignNetwork.bundleId)
       //         .setStage(dataCampaignNetwork.stage)
       // );
-      await this.removeUnit(new IdCampaign(responseCreateCampaign.id));
+      await this.removeUnit(new IdCampaign(newCampId));
       return new ResponceApiNetwork({
         code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
         message: JSON.stringify(newCreative) + ' add creative'
@@ -135,12 +149,21 @@ export default class AdxAdCampaign extends Campaign {
    * @returns
    */
   private prepareStatus(data: FullDataCampaign): StatusCampaign {
-    const { status: statusCampaign, creatives } = data.value;
-    const { status: statusCreative } = creatives[0];
+    const {
+      campaign: { status: statusCampaign },
+      creative: { moderationStatus: statusCreative }
+    } = data.value;
+
     // Если у креатива статус можерация то используем егго статус для определения статуса каспании
-    const status = [2, 3].includes(statusCreative) ? statusCreative : statusCampaign;
+    const status = ['moderatePending', 'moderateRejected'].includes(statusCreative) ? statusCreative : statusCampaign;
     return new StatusCampaign(
-      status === 1 ? 'working' : status === 0 ? 'stopped' : status === 2 ? 'moderation' : 'rejected'
+      status === 'active'
+        ? 'working'
+        : status === 'stopped'
+        ? 'stopped'
+        : status === 'moderatePending'
+        ? 'moderation'
+        : 'rejected'
     );
   }
 
@@ -177,20 +200,26 @@ export default class AdxAdCampaign extends Campaign {
    * @param rawTimeData
    * @returns
    */
-  private transformSchedule(rawSchedule: IUpdateDataCampaignSchedule): ScheduleCampaign {
-    const schedule = rawSchedule;
+  private transformSchedule(rawSchedule: IResultFullDataCampaignDataTargetingsTime): ScheduleCampaign {
+    const capitalizeFirstLetter = (str: string) => {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    };
+    const result: any = [];
 
-    return new ScheduleCampaign(
-      Object.keys(schedule).reduce(
-        (cur: any, el: any) =>
-          cur.concat(
-            schedule[el].map(
-              (hour: number) => `${el.charAt(0).toUpperCase() + el.slice(1)}${hour.toString().padStart(2, '0')}`
-            )
-          ),
-        []
-      )
-    );
+    rawSchedule.data.forEach((day) => {
+      if (day.data === true) {
+        // Если data: true, учитываем все часы с 0 до 23
+        for (let hour = 0; hour < 24; hour++) {
+          result.push(`${capitalizeFirstLetter(day.id)}${hour.toString().padStart(2, '0')}`);
+        }
+      } else if (Array.isArray(day.data)) {
+        // Если data - это массив, учитываем только указанные часы
+        day.data.forEach((hour) => {
+          result.push(`${capitalizeFirstLetter(day.id)}${hour.toString().padStart(2, '0')}`);
+        });
+      }
+    });
+    return new ScheduleCampaign(result);
   }
 
   /**
@@ -198,22 +227,22 @@ export default class AdxAdCampaign extends Campaign {
    * @param rawTimeData
    * @returns
    */
-  private reverseTransformSchedule(rawSchedule: ScheduleCampaign): IUpdateDataCampaignSchedule {
-    const reversedSchedule: any = {};
+  // private reverseTransformSchedule(rawSchedule: ScheduleCampaign): IUpdateDataCampaignSchedule {
+  //   const reversedSchedule: any = {};
 
-    for (const str of rawSchedule.value) {
-      const day = str.substring(0, 3).toLowerCase(); // Извлекаем день недели из строки
-      const hour = parseInt(str.substring(3), 10); // Извлекаем час из строки и преобразуем в число
+  //   for (const str of rawSchedule.value) {
+  //     const day = str.substring(0, 3).toLowerCase(); // Извлекаем день недели из строки
+  //     const hour = parseInt(str.substring(3), 10); // Извлекаем час из строки и преобразуем в число
 
-      if (!reversedSchedule[day]) {
-        reversedSchedule[day] = [];
-      }
+  //     if (!reversedSchedule[day]) {
+  //       reversedSchedule[day] = [];
+  //     }
 
-      reversedSchedule[day].push(hour);
-    }
+  //     reversedSchedule[day].push(hour);
+  //   }
 
-    return reversedSchedule;
-  }
+  //   return reversedSchedule;
+  // }
 
   /**
    * вытянуть все данные по кампании из сети
@@ -228,17 +257,29 @@ export default class AdxAdCampaign extends Campaign {
       });
     }
 
-    const { id, creatives, targetings, name, bid, placements, schedule } = fullDataResponse.value;
-    const { clickUrl: url } = creatives[0];
-    const { countries, spots } = targetings;
-
-    const actualList = { list: spots?.value, type: !spots?.mode };
+    const {
+      campaign: { id, name },
+      creative: { urlTemplate: url, targetSourceId, adPricingRate, targetings }
+    } = fullDataResponse.value;
+    const geoData = targetings.find(
+      (f: IResultFullDataCampaignDataTargeting) => f.id === 'geo'
+    ) as IResultFullDataCampaignDataTargetingsGeo;
+    const timeData = targetings.find(
+      (f: IResultFullDataCampaignDataTargeting) => f.id === 'time'
+    ) as IResultFullDataCampaignDataTargetingsTime;
+    const actualList = { list: targetSourceId.data.split(','), type: targetSourceId.type === 'blacklist' };
 
     this.setId(new IdCampaign(id))
       .setName(new NameCampaign(name))
       .setTargetUrl(new TargetUrlCampaign(url))
-      .setCountry(new CountryCampaign(countries.value[0]))
-      .setBid(new BidCampaign(bid))
+      .setCountry(
+        new CountryCampaign(
+          this.conn.network.collections?.countries?.find(
+            (f: any) => Number(f.value) === Number(geoData?.data?.countries?.[0]?.id)
+          ) ?? ''
+        )
+      )
+      .setBid(new BidCampaign(Number(adPricingRate)))
       .setPlacementsData(
         new PlacementCampaign({
           list: actualList?.list ?? [],
@@ -246,7 +287,7 @@ export default class AdxAdCampaign extends Campaign {
         })
       )
       .setStatus(this.prepareStatus(fullDataResponse))
-      .setSchedule(this.transformSchedule(schedule));
+      .setSchedule(this.transformSchedule(timeData));
 
     return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
   }
@@ -256,14 +297,16 @@ export default class AdxAdCampaign extends Campaign {
    * @param data
    * @returns
    */
-  private async createCreative(data: AddCreative): Promise<ResultAddCreative | null> {
-    const externalUrl = `creative`;
+  private async createCreative(data: AddDataCreative): Promise<ResultAddCreative | null> {
+    // console.log(data.value.targetings[0].data);
+    const externalUrl = `/advertiserapi/creative/add`;
     let createdCreative = null;
-    if (this.conn.api_conn) {
-      createdCreative = await this.conn.api_conn
+    if (this.conn.admin_conn) {
+      createdCreative = await this.conn.admin_conn
         ?.post(`${externalUrl}`, data.value, {
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-requested-with': 'XMLHttpRequest'
           }
         })
         .then((d: IHttpResponse) => new ResultAddCreative(d.data));
@@ -276,15 +319,20 @@ export default class AdxAdCampaign extends Campaign {
    * @param data
    * @returns
    */
-  protected async updateRaw(data: UpdateDataCampaign): Promise<any> {
-    const externalUrl = `campaign`;
-    return await this.conn.api_conn
-      ?.put(`${externalUrl}`, data.value, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      .then((d: IHttpResponse) => d.data);
+  protected async updateRaw(data: UpdateDataCampaign): Promise<ResultAddCreative | null> {
+    const externalUrl = `advertiserapi/creative/edit/id/${data.value.id}`;
+    let responseData: ResultAddCreative | null = null;
+    if (this.conn.admin_conn) {
+      responseData = await this.conn.admin_conn
+        ?.post(`${externalUrl}`, data.value, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-requested-with': 'XMLHttpRequest'
+          }
+        })
+        .then((d: IHttpResponse) => new ResultAddCreative(d.data));
+    }
+    return responseData;
   }
 
   /**
@@ -292,15 +340,21 @@ export default class AdxAdCampaign extends Campaign {
    * @param data
    * @returns
    */
-  protected async addRaw(data: AddDataCampaign): Promise<any> {
-    const externalUrl = `campaign`;
-    return await this.conn.api_conn
-      ?.post(`${externalUrl}`, data.value, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      .then((d: IHttpResponse) => d.data);
+  protected async addRaw(data: AddDataCampaign): Promise<ResponseAddcampaign | null> {
+    const externalUrl = `advertiserapi/campaign/add/`;
+
+    let responseData: ResponseAddcampaign | null = null;
+    if (this.conn.admin_conn) {
+      responseData = await this.conn.admin_conn
+        .post(`${externalUrl}`, data.value, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-requested-with': 'XMLHttpRequest'
+          }
+        })
+        .then((d: IHttpResponse) => new ResponseAddcampaign(d.data));
+    }
+    return responseData;
   }
 
   /**
@@ -309,19 +363,45 @@ export default class AdxAdCampaign extends Campaign {
    * @returns
    */
   private async getFullDataCampaign(campaignId: IdCampaign): Promise<FullDataCampaign | null> {
-    const externalUrl = `campaign/get?id=${campaignId.value}`;
-    const externalUrlCreative = `creative/list?page=1&limit=3000&filter[campaign][]=${campaignId.value}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-requested-with': 'XMLHttpRequest'
+    };
+    const idCampaignValue = campaignId.value;
+    const externalUrl = `advertiserapi/campaign/get/id/${idCampaignValue}/modeUi/simple`;
+    const externalUrlCreativeTargeting = `https://trending.bid/advertiserapi/creative/gettargetings`;
     let data: FullDataCampaign | null = null;
-    if (this.conn.api_conn) {
-      data = await this.conn.api_conn.get(externalUrl).then(async (resp: IHttpResponse) => {
-        // new Logger(resp.data).setTag('getFullDataCampaign').log();
-        const r = resp.data.data;
-        const creatives = await this.conn.api_conn
-          ?.get(externalUrlCreative)
-          .then((rexpCreative: IHttpResponse) => rexpCreative.data?.data);
+    if (this.conn.admin_conn) {
+      data = await this.conn.admin_conn.get(externalUrl).then(async (resp: IHttpResponse) => {
+        const r = resp.data;
+        const externalURLGetCreatives = `simple/campaign/campaignid/${campaignId.value}`;
+        const dataGetCreative = { commonFilters: { dateStart: 'today', dateEnd: 'today', datePeriod: null } };
+        const dataCampaignCreatives = await this.conn.admin_conn
+          ?.post(externalURLGetCreatives, dataGetCreative, headers)
+          .then((d: IHttpResponse) => d.data.data);
 
-        r.creatives = creatives;
-        return new FullDataCampaign(r);
+        // console.log(999, dataCampaignCreatives);
+        const creativeId = dataCampaignCreatives?.creatives?.items?.[0]?.id;
+
+        const externalUrlCreative = `advertiserapi/creative/get/id/${creativeId}/modeUi/simple`;
+
+        // new Logger(resp.data).setTag('getFullDataCampaign').log();
+
+        const creative = await this.conn.admin_conn
+          ?.get(externalUrlCreative)
+          .then(async (respCreative: IHttpResponse) => {
+            const c = respCreative.data?.data;
+            // console.log(externalUrlCreative, c);
+            const bodyGetCreativeTargeting = { id: creativeId, adCampaignId: idCampaignValue };
+            return await this.conn.admin_conn
+              ?.post(externalUrlCreativeTargeting, bodyGetCreativeTargeting, headers)
+              .then((respCreativeTargeting: IHttpResponse) => {
+                c.targetings = respCreativeTargeting.data?.data?.targetings;
+                return c;
+              });
+          });
+
+        return new FullDataCampaign({ code: r.code, campaign: r.data, creative });
       });
     }
     return data;
@@ -336,7 +416,7 @@ export default class AdxAdCampaign extends Campaign {
     this.handlerErrNotIdCampaign();
     const responseStatus = await this.getFullDataCampaign(this.id);
 
-    if (responseStatus && responseStatus?.value?.id) {
+    if (responseStatus?.value?.code === 200) {
       return new ResponceApiNetwork({
         code: RESPONSE_CODES.SUCCESS,
         message: 'OK',
@@ -362,29 +442,18 @@ export default class AdxAdCampaign extends Campaign {
     const list = [...new Set(_val?.list ?? [])];
     const type = !!_val?.type;
 
-    if (!fullDataCampaign) {
+    if (fullDataCampaign?.value?.code !== 200) {
       return new ResponceApiNetwork({
         code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
         message: 'Error get data campaign'
       });
     }
-    const { segments, project, mediaType } = fullDataCampaign.value;
-    const updateDataCampaign = new UpdateDataCampaign({
-      ...fullDataCampaign.value,
-      id: String(this.id.value),
-      format: '',
-      dynamicBid: true,
-      segments: segments ?? [],
-      project: project.id,
-      mediaType: mediaType.id
-    })
-      .setPLacements({ list, type })
-      .prepare();
-    const responseSetPlacement = await this.updateRaw(updateDataCampaign);
+    const updateDataCreative = UpdateDataCreative.fromFullDataCampaign(fullDataCampaign).setPLacements({ list, type });
+    const responseSetPlacement = await this.updateRaw(updateDataCreative);
     // const dataCamp = responseSetPlacement?.data;
     // const status = responseSetPlacement?.status;
 
-    if (responseSetPlacement?.status === 'OK') {
+    if (responseSetPlacement?.value?.code === 200) {
       this.setPlacementsData(
         new PlacementCampaign({
           list: list ?? [],
@@ -394,7 +463,7 @@ export default class AdxAdCampaign extends Campaign {
         /**
          * TODO: сделать запрос на получение актуального статуса
          */
-        .setStatus(new StatusCampaign('stopped'));
+        .setStatus(this.prepareStatus(fullDataCampaign));
 
       return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this });
     } else {
@@ -413,25 +482,30 @@ export default class AdxAdCampaign extends Campaign {
     return await this.removeUnit(this.id);
   }
 
-  private async changeCampaignStatus(idCampaign: IdCampaign, status: number): Promise<ResponceApiNetwork> {
-    const dataDeleteCampaign = {
-      ids: [idCampaign.value],
-      status // архив
-    };
-    const externalUrl = 'campaign/status';
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    const responseRemove = await this.conn.api_conn
-      ?.put(externalUrl, dataDeleteCampaign, {
-        headers
-      })
-      .then((resp: IHttpResponse) => resp.data);
-    const success = responseRemove && responseRemove.status && responseRemove.status === 'OK';
+  private async changeCampaignStatus(idCampaign: IdCampaign, status: status): Promise<ResponceApiNetwork> {
+    const externalURL = 'advertiserapi/campaign/switch';
+    let resultSwitchStatusUnit = null;
+    if (this.conn.admin_conn) {
+      const dataRemove = new SwitchStatusDataCampaign({
+        campaigns: { type: '', include: [Number(idCampaign.value)], exclude: [] },
+        status,
+        showStopped: true,
+        showDeleted: true
+      });
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-requested-with': 'XMLHttpRequest'
+      };
+      resultSwitchStatusUnit = await this.conn.admin_conn
+        .post(externalURL, dataRemove.value, headers)
+        .then((d: IHttpResponse) => new ResultSwitchStatusCampaign(d.data));
+    }
+    const success = resultSwitchStatusUnit?.value?.code === 200;
 
     return new ResponceApiNetwork({
       code: success ? RESPONSE_CODES.SUCCESS : RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-      message: success ? 'OK' : JSON.stringify(responseRemove)
+      message: success ? 'OK' : JSON.stringify(resultSwitchStatusUnit)
     });
   }
 
@@ -441,7 +515,7 @@ export default class AdxAdCampaign extends Campaign {
    * @returns
    */
   private async removeUnit(id: IdCampaign): Promise<ResponceApiNetwork> {
-    return await this.changeCampaignStatus(id, 4);
+    return this.changeCampaignStatus(id, 'deleted');
   }
 
   /**
@@ -456,7 +530,8 @@ export default class AdxAdCampaign extends Campaign {
     };
     const externalUrl = 'creative/status';
     const headers = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'x-requested-with': 'XMLHttpRequest'
     };
     const responseRemove = await this.conn.api_conn
       ?.put(externalUrl, dataDeleteCampaign, {
@@ -475,7 +550,7 @@ export default class AdxAdCampaign extends Campaign {
    */
   async start(): Promise<ResponceApiNetwork> {
     this.handlerErrNotIdCampaign();
-    return await this.changeCampaignStatus(this.id, 1);
+    return await this.changeCampaignStatus(this.id, 'active');
   }
 
   /**
@@ -483,7 +558,7 @@ export default class AdxAdCampaign extends Campaign {
    */
   async stop(): Promise<ResponceApiNetwork> {
     this.handlerErrNotIdCampaign();
-    return await this.changeCampaignStatus(this.id, 0);
+    return await this.changeCampaignStatus(this.id, 'stopped');
   }
 
   /**
@@ -492,7 +567,7 @@ export default class AdxAdCampaign extends Campaign {
    */
   async minBid(): Promise<ResponceApiNetwork<BidCampaign>> {
     this.handlerErrNotCountryCampaign();
-    return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: new BidCampaign(0.2) });
+    return new ResponceApiNetwork({ code: RESPONSE_CODES.SUCCESS, message: 'OK', data: new BidCampaign(0.1) });
   }
 
   /**

@@ -1,6 +1,6 @@
-import AdxAd from './models/adxad/AdxAd';
-import AdxAdAccount from './models/adxad/AdxAdAccount';
-import AdxAdCampaign from './models/adxad/AdxAdCampaign';
+import TradingBid from './models/tradingbid/TradingBid';
+import TrendingBidAccount from './models/tradingbid/TrendingBidAccount';
+import TrendingBidCampaign from './models/tradingbid/TrendingBidCampaign';
 
 import {
   TemplateIdCampaign,
@@ -22,10 +22,10 @@ export {
   CountryCampaign as CountryCampaign,
   BidCampaign as BidCampaign,
   IdCampaign as IdCampaign,
-  AdxAdCampaign as Campaign,
+  TrendingBidCampaign as Campaign,
   PlacementCampaign as PlacementCampaign,
   ScheduleCampaign as ScheduleCampaign,
-  AdxAdAccount as Account
+  TrendingBidAccount as Account
 };
 
-export default AdxAd;
+export default TradingBid;
