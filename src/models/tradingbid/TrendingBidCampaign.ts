@@ -320,6 +320,7 @@ export default class TrendingBidCampaign extends Campaign {
    * @returns
    */
   protected async updateRaw(data: UpdateDataCampaign): Promise<ResultAddCreative | null> {
+    console.log(data);
     const externalUrl = `advertiserapi/creative/edit/id/${data.value.id}`;
     let responseData: ResultAddCreative | null = null;
     if (this.conn.admin_conn) {

@@ -37,13 +37,14 @@ export default class UpdateDataCreative {
         isStartAfterApproved,
         adPricingRate,
         targetSourceId,
-        targetings
+        targetings,
+        id
       }
     } = fullDataCampaign.value;
     return new UpdateDataCreative({
       type: 'creatives',
       modeUi: 'simple',
-      id: null,
+      id,
       adFormatId: Number(adFormatId),
       adCampaignId,
       adPricingModel,
