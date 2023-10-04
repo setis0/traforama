@@ -44,7 +44,13 @@ module.exports = {
       }
     ]
   },
-  externals: ['qs', 'axios', '@atsorganization/ats-lib-ntwk-common', '@atsorganization/ats-lib-logger'],
+  externals: [
+    'qs',
+    'axios',
+    '@atsorganization/ats-lib-ntwk-common',
+    '@atsorganization/ats-lib-logger',
+    '@atsorganization/ats-lib-redis'
+  ],
   resolve: {
     modules: [path.resolve('./src')],
     extensions: ['.js', '.ts']

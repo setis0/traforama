@@ -47,6 +47,7 @@
   "dependencies": {
     "@atsorganization/ats-lib-logger": "^1.0.0",
     "@atsorganization/ats-lib-ntwk-common": "^1.0.0",
+    "@atsorganization/ats-lib-redis": "^1.0.2",
     "axios": "^1.3.6",
     "dotenv": "^16.3.1",
     "dotenv-webpack": "^8.0.1",

@@ -1,5 +1,6 @@
 import { ICollectionsNetwork, Network, NetworkConnection } from '@atsorganization/ats-lib-ntwk-common';
 import TrendingBidConnection from './TrendingBidConnection';
+import RedisCache from '@atsorganization/ats-lib-redis';
 
 export interface IResultFullDataCampaignCountryItem {
   value: string;
@@ -12,8 +13,8 @@ interface ICollectionsTrendingBid extends ICollectionsNetwork {
 }
 export default class TrendingBid extends Network {
   collections?: ICollectionsTrendingBid;
-  constructor(login: string, password: string, api_key: string) {
-    super(login, password, api_key);
+  constructor(login: string, password: string, api_key: string, redisCache: RedisCache = new RedisCache()) {
+    super(login, password, api_key, redisCache);
     this.base_url_api = 'https://trending.bid/';
     this.base_url_admin = 'https://trending.bid/';
     this.name = 'trendingbid';

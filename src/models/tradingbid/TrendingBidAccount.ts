@@ -10,7 +10,9 @@ export default class TrendingBidAccount extends Account {
     const responseBalance = await this.conn.admin_conn?.get(externalUrl).then((resp: IHttpResponse) => resp.data);
 
     const account = responseBalance?.data;
-    const balance = account?.balance;
+
+    const balance = account?.balance ? String(account?.balance)?.replace('~', '') : undefined;
+
     if (balance) {
       this.setBalance(new BalanceAccount(Number(balance)));
     }

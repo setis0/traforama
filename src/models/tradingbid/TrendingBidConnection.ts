@@ -17,6 +17,7 @@ import { IResultFullDataCampaignCountryItem } from './TradingBid';
 import RuCaptcha from '../../services/RuCaptcha';
 import { RU_CAPTCHA_KEY } from '../../consts';
 const qs = require('qs'); // Импортируйте библиотеку qs
+import { redisPathGenerator } from '@atsorganization/ats-lib-redis';
 
 export default class TrendingBidConnection extends NetworkConnection {
   /**
@@ -59,7 +60,8 @@ export default class TrendingBidConnection extends NetworkConnection {
    * Авторизация в сети
    * @returns
    */
-  private async auth(): Promise<string | false> {
+  private async auth(): Promise<string> {
+    new Logger({}).setNetwork(this.network.name).setDescription('Получаем авториз. данные из СЕТИ').log();
     const dataAuth: any = {
       username: this.network.login,
       password: this.network.password
@@ -99,16 +101,21 @@ export default class TrendingBidConnection extends NetworkConnection {
     } as any);
     // console.log(response.headers, response.status);
     const { PHPSESSID, auth } = SetCookies.parse(response.headers?.['set-cookie']);
-    return `PHPSESSID=${PHPSESSID?.value ?? PHPSESSID_LOGIN.value};auth=${auth?.value ?? ''}`;
+    const readyCookie = `PHPSESSID=${PHPSESSID?.value ?? PHPSESSID_LOGIN.value};auth=${auth?.value ?? ''}`;
+    new Logger(readyCookie).setNetwork(this.network.name).setDescription('Получены авториз. данные из СЕТИ').log();
+    return readyCookie;
   }
+
   /**
    * Открытие соединения
    * @returns
    */
   async open(): Promise<NetworkConnection> {
-    //устанока соединения через админку
-    const authcookies = await this.auth();
-    console.log(authcookies);
+    let authData = await this.getCashe();
+    if (!authData) {
+      authData = await this.auth();
+      await this.setCache(authData);
+    }
     // устанока соединения через АПИ
     this.api_conn = new HttpInstance({
       baseUrl: this.network?.base_url_api,
@@ -116,7 +123,7 @@ export default class TrendingBidConnection extends NetworkConnection {
     });
     this.admin_conn = new HttpInstance({
       baseUrl: this.network?.base_url_admin,
-      headers: { Cookie: authcookies }
+      headers: { Cookie: authData }
     });
     this.keepAlive();
     await this.initColletions();
@@ -137,12 +144,23 @@ export default class TrendingBidConnection extends NetworkConnection {
   keepAlive(): void {
     // admin conn
     const callbackErrAdmin = async (response: { config: IHttpConfig; status?: number }): Promise<any> => {
-      // if (response.status === 401 && response.config && !response.config.__isRetryRequest) {
-      //   return await this.open().then(async (conn: NetworkConnection) => {
-      //     response.config.__isRetryRequest = true;
-      //     return HttpInstance.request?.(response.config);
-      //   });
-      // }
+      if (response.status === 401 && response.config && !response.config.__isRetryRequest) {
+        new Logger({}).setDescription('keepAlive 401').setNetwork(this.network.name).log();
+        return await this.auth().then(async (authData: string) => {
+          response.config.__isRetryRequest = true;
+          response.config.baseUrl = this.network?.base_url_admin;
+          response.config.headers = {
+            Cookie: authData
+          };
+          console.log(response.config);
+          await this.setCache(authData);
+          this.admin_conn = new HttpInstance({
+            baseUrl: this.network?.base_url_admin,
+            headers: { Cookie: authData }
+          });
+          return HttpInstance.request?.(response.config);
+        });
+      }
       return response;
     };
 
