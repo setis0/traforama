@@ -31,7 +31,10 @@ import AddCreative from './api/AddCreative';
 import ResultAddCreative from './api/ResultAddCreative';
 import AddDataCampaign from './api/AddDataCampaign';
 import UpdateDataCampaign from './api/UpdateDataCreative';
-import FullDataCampaignStats, { IResultFullDataCampaignStatsDataItem } from './api/FullDataCampaignStats';
+import FullDataCampaignStats, {
+  IResultFullDataCampaignStatsDataItem,
+  IResultFullDataCampaignStatsDataItemStat
+} from './api/FullDataCampaignStats';
 
 import AddDataCreative from './api/AddDataCreative';
 import { IResultFullDataCampaignCountryItem } from './TradingBid';
@@ -578,25 +581,120 @@ export default class TrendingBidCampaign extends Campaign {
   async stats(date: string): Promise<ResponceApiNetwork<StatsRaw>> {
     this.handlerErrNotIdCampaign();
     const dateComponents = date.split('-');
-    const datePrepare = dateComponents[1] + '/' + dateComponents[2] + '/' + dateComponents[0];
+    const datePrepare = dateComponents[2] + '.' + dateComponents[1] + '.' + dateComponents[0];
+    const externalUrl = `api/statistics/index`;
+
+    const prepareReportData = async (dateReport: string): Promise<IResultFullDataCampaignStatsDataItem | undefined> => {
+      const getReportData = async (): Promise<FullDataCampaignStats | undefined> => {
+        return await this.conn.admin_conn
+          ?.post(externalUrl, {})
+          .then((d: IHttpResponse) => new FullDataCampaignStats(d.data));
+      };
+      const responseDataStatsReport = await getReportData();
+      if (responseDataStatsReport?.value?.code !== 200) {
+        return;
+      }
+      const filterCondition = {
+        counter: {
+          comparisonOperator: '<>',
+          name: '',
+          value: [dateReport, dateReport]
+        }
+      };
+
+      const customDataGetStats = responseDataStatsReport.value.data;
+      customDataGetStats.date.start = dateReport;
+      customDataGetStats.date.end = dateReport;
+      customDataGetStats.using.push(
+        {
+          name: 'impSourceHash',
+          filter: null
+        },
+        {
+          name: 'impAdCampaignId',
+          filter: {
+            fromList: [],
+            fromCondition: {
+              counter: {
+                name: '',
+                comparisonOperator: '=',
+                value: []
+              }
+            },
+            fromSearch: [
+              {
+                value: this.id.value,
+                label: ''
+              }
+            ]
+          }
+        }
+      );
+      customDataGetStats.using.forEach((el: any) => {
+        if (el.name === 'date') {
+          el.filter.fromCondition = filterCondition;
+        }
+      });
+
+      customDataGetStats.notUsing = customDataGetStats.notUsing.filter(
+        (f: any) => !['impAdCampaignId', 'impSourceHash'].includes(f.name)
+      );
+
+      customDataGetStats.table.data = [];
+      customDataGetStats.table.columns.push(
+        {
+          name: 'impAdCampaignId',
+          filter: null
+        },
+        {
+          name: 'impSourceHash',
+          filter: null
+        }
+      );
+      customDataGetStats.table.columns.forEach((el: any) => {
+        if (el.name === 'date') {
+          el.filter.fromCondition = filterCondition;
+        }
+      });
+
+      customDataGetStats.table.columns = customDataGetStats.table.columns.filter((f: any) =>
+        ['date', 'impAdCampaignId', 'impSourceHash', 'eventView', 'advertiserAllPayments'].includes(f.name)
+      );
+      // customDataGetStats.templateId = '';
+      return customDataGetStats;
+    };
+    const prepareDataStat = await prepareReportData(datePrepare);
+
+    if (!prepareDataStat) {
+      return new ResponceApiNetwork({
+        code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+        message: 'error fwtchData stats'
+      });
+    }
+
     /**
      * ПОлучение данных
      * @param page
      * @returns
      */
     const fwtchData = async (page: number): Promise<FullDataCampaignStats | null> => {
-      const externalUrl = `report?groups=spot&filter[from]=${datePrepare}&filter[to]=${datePrepare}&filter[campaign][]=${this.id.value}&page=${page}&limit=3000`;
+      prepareDataStat.table.pagination.page = page;
+
       let resGetStats = null;
-      if (this.conn.api_conn) {
-        resGetStats = await this.conn.api_conn
-          ?.get(externalUrl)
+      if (this.conn.admin_conn) {
+        resGetStats = await this.conn.admin_conn
+          ?.post(externalUrl, prepareDataStat, {
+            'Content-Type': 'application/json',
+            'x-requested-with': 'XMLHttpRequest'
+          })
           .then((d: IHttpResponse) => new FullDataCampaignStats(d.data));
       }
+      // console.log(prepareDataStat);
       return resGetStats;
     };
 
     let page = 1;
-    const allData: IResultFullDataCampaignStatsDataItem[] = [];
+    const allData: IResultFullDataCampaignStatsDataItemStat[] = [];
     while (true) {
       try {
         const dataStats = await fwtchData(page);
@@ -606,11 +704,14 @@ export default class TrendingBidCampaign extends Campaign {
             message: 'error fwtchData stats'
           });
         }
-        if (!dataStats?.value.data.length) {
+        // console.log(dataStats?.value?.data?.table?.data?.length, dataStats?.value?.data?.table?.pagination, page);
+        if (!dataStats?.value?.data?.table?.data?.length) {
           // No more data, break the loop
           break;
         }
-        allData.push(...dataStats.value.data);
+        prepareDataStat.templateId = '';
+        prepareDataStat.reportId = dataStats.value.data.reportId;
+        allData.push(...dataStats.value?.data?.table?.data);
         page++;
       } catch (error) {
         // Handle the error if needed
@@ -622,12 +723,12 @@ export default class TrendingBidCampaign extends Campaign {
     }
 
     const data = new StatsRaw(
-      allData.map((m: IResultFullDataCampaignStatsDataItem) => {
+      allData.map((m: IResultFullDataCampaignStatsDataItemStat) => {
         return {
           report_date: date,
-          site_id: m.spot.id,
-          impressions: m.impressions,
-          cost: m.cost,
+          site_id: m.impSourceHash,
+          impressions: Number(m.eventView),
+          cost: Number(m.advertiserAllPayments),
           source_id: 0,
           bundle_id: 0,
           id_campaign: String(this.id.value)
