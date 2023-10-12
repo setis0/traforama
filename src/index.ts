@@ -1,6 +1,3 @@
-import TradingBid from './models/tradingbid/TradingBid';
-import TrendingBidAccount from './models/tradingbid/TrendingBidAccount';
-import TrendingBidCampaign from './models/tradingbid/TrendingBidCampaign';
 
 import {
   TemplateIdCampaign,
@@ -13,7 +10,9 @@ import {
   BrowserVersionCampaign,
   BidCampaign
 } from '@atsorganization/ats-lib-ntwk-common';
-
+import TraforamaCom from "./models/traforamacom/TraforamaCom";
+import TraforamaComAccount from "./models/traforamacom/TraforamaComAccount";
+import TraforamaComCampaign from "./models/traforamacom/TraforamaComCampaign";
 export {
   BrowserVersionCampaign as BrowserVersionCampaign,
   TargetUrlCampaign as TargetUrlCampaign,
@@ -22,10 +21,10 @@ export {
   CountryCampaign as CountryCampaign,
   BidCampaign as BidCampaign,
   IdCampaign as IdCampaign,
-  TrendingBidCampaign as Campaign,
+  TraforamaComCampaign as Campaign,
   PlacementCampaign as PlacementCampaign,
   ScheduleCampaign as ScheduleCampaign,
-  TrendingBidAccount as Account
+  TraforamaComAccount as Account
 };
 
-export default TradingBid;
+export default TraforamaCom;
