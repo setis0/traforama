@@ -1,5 +1,123 @@
 import IHttpResponse from "@atsorganization/ats-lib-ntwk-common/src/http/IHttpResponse";
-export type ResponseNotAnswer = IHttpResponse & {data:ResponseError}
+
+export enum AdTypes {
+    all = 0,
+    banner = 1,
+    popunder = 2,
+    video = 6,
+    slider =8,
+    interstitial = 9 ,
+    in_page_push = 10
+}
+// export enum Grouping{
+//     date = "day", country = "geo", creature = "creative," ad_type = ad format, browser - browser, campaign - campaign, connection - connection type, device - device, IP - IP address, platform - platform, proxy_type - proxy type, referer_host - referer hosts, spot - spot, stream - stream, feed -
+// feed
+// }
+// export interface ReportDimensions {
+//     ad_types:AdTypes,
+//     //dd.mm.yyyy+-+dd.mm.yyy
+//     period: string,
+//     conversion_types:string
+//     group_by:
+// }
+export type ResponseCountry = IHttpResponse & {data:CountryRoot|ResponseError}
+export interface CountryRoot {
+    data: CountryDaum[]
+    meta: Meta
+}
+
+export interface CountryDaum {
+    id: string
+    type: string
+    attributes: CountryAttributes
+}
+
+export interface CountryAttributes {
+    name: string
+    iso: string
+    tier: number
+    is_eu: boolean
+}
+
+export type ResponseDspMinimalCpms = IHttpResponse & {data:DspMinimalCpmsRoot|ResponseError}
+export interface DspMinimalCpmsRoot {
+    data: DspMinimalCpmsDaum[]
+    meta: Meta
+}
+
+export interface DspMinimalCpmsDaum {
+    id: string
+    type: string
+    attributes: DspMinimalCpmsAttributes
+}
+
+export interface DspMinimalCpmsAttributes {
+    value: number
+    country_id: number
+    value_max: number
+}
+
+export type ResposeReport = IHttpResponse & { data:Report[]|ResponseError}
+export interface Report {
+    name: string
+    hits: number
+    clicks: number
+    bounces: number
+    bounce_rate: number
+    ctr: number
+    broker_hits: number
+    broker_clicks: number
+    broker_bounces: number
+    broker_income: number
+    broker_cpm: number
+    broker_ctr: number
+    real_cpm: number
+    hits_to_clicks: number
+    discrepancy: number
+    conversion101: number
+    broker_bounce_rate: number
+    broker_cpc: number
+    requests: number
+    impressions: number
+    ecpa101: number
+    ectr101: number
+}
+
+export type ResponseNotAnswer = IHttpResponse & { data: ResponseError }
+
+export interface CreateCreative {
+    name: string
+    link_url: string
+    code: string
+    hide_referrer: boolean
+    aggressive: boolean
+    refresh_rate: number
+    no_bounces: boolean
+    skip_if_no_ref: boolean
+    skip_if_no_cookies: boolean
+    skip_if_x_requested_with: boolean
+    no_onloop: boolean
+    float_rate: boolean
+    block_proxy_type_ids: number[]
+    prices: Price[]
+    image: string
+    video: string
+    icon: string
+    remote_url: string
+    vast_tag: string
+    title: string
+    description: string
+    skip_offset: number
+    campaign_id: number
+    subtype_id: number
+    advert_state: string
+}
+
+export interface Price {
+    id: string
+    value: number
+}
+
 export interface ApiBalance {
     balance: number
 }
@@ -104,7 +222,8 @@ export interface ShowCampaignsIDAttributes {
     use_whitelist_ip: boolean
 }
 
-export type ResponseShowCreativeId = IHttpResponse & { data: ShowCampaignsIDRoot|ResponseError}
+export type ResponseShowCreativeId = IHttpResponse & { data: ShowCampaignsIDRoot | ResponseError }
+
 export interface ShowCreativeIdRoot {
     data: ShowCreativeIdData
 }
@@ -161,7 +280,8 @@ export interface Price {
     value: number
 }
 
-export type ResponseCreativeList = IHttpResponse & { data: CreativeListRoot|ResponseError}
+export type ResponseCreativeList = IHttpResponse & { data: CreativeListRoot | ResponseError }
+
 export interface CreativeListRoot {
     data: CreativeListDaum[]
     meta: Meta
@@ -184,7 +304,8 @@ export interface Meta {
     total: number
 }
 
-export type ResponseCreativeById = IHttpResponse & { data: CreativeByIdRoot|ResponseError}
+export type ResponseCreativeById = IHttpResponse & { data: CreativeByIdRoot | ResponseError }
+
 export interface CreativeByIdRoot {
     data: CreativeByIdData
 }

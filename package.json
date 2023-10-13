@@ -1,5 +1,5 @@
 {
-  "name": "@atsorganization/ats-lib-trendingbid",
+  "name": "@atsorganization/ats-lib-traforamacom",
   "version": "1.0.4",
   "description": "Library connection API AdNetwork trendingbid",
   "main": "lib/index.js",
@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "WEBPACK_ENV=production webpack",
-    "dev": "WEBPACK_ENV=dev webpack --progress --colors --watch",
+    "dev": "WEBPACK_ENV=dev webpack --progress --watch",
     "test": "mocha --compilers js:babel-core/register --colors -w ./test/*.spec.js"
   },
   "author": "",
@@ -48,9 +48,14 @@
     "@atsorganization/ats-lib-logger": "^1.0.0",
     "@atsorganization/ats-lib-ntwk-common": "^1.0.0",
     "@atsorganization/ats-lib-redis": "^1.0.2",
+    "@codegena/oapi3ts": "^3.0.0-alpha.4",
+    "@codegena/oapi3ts-cli": "^2.1.10-alpha.8",
+    "@openapitools/openapi-generator-cli": "^2.7.0",
     "axios": "^1.3.6",
+    "circular-json": "^0.5.9",
     "dotenv": "^16.3.1",
     "dotenv-webpack": "^8.0.1",
-    "qs": "^6.11.2"
+    "qs": "^6.11.2",
+    "swagger-typescript-api": "^13.0.3"
   }
 }
