@@ -12,28 +12,30 @@ import IHttpResponse from "@atsorganization/ats-lib-ntwk-common/src/http/IHttpRe
 import {IStatsRaw} from "@atsorganization/ats-lib-ntwk-common/src/models/StatsRaw";
 import {RESPONSE_CODES} from "../../consts";
 import {
-    CountryRoot,
+    AdTypes,
     CreateCreative,
     CreativeByIdData,
     CreativeListAttributes,
     CreativeListRoot,
     DspMinimalCpmsRoot,
     ParametersCampaignsCreate,
-    Report,
-    ResponseCountry,
+    ReportJobResultResult,
+    ReportJobResultResultData,
+    RequestReportJob,
     ResponseCreativeById,
     ResponseCreativeList,
     ResponseDspMinimalCpms,
     ResponseError,
     ResponseNotAnswer,
+    ResponseReportJob,
+    ResponseReportJobResult,
     ResponseShowCreativeId,
-    ResposeReport,
     ShowCampaignsIDRoot,
-    ShowCreativeIdAttributes,
     ShowCreativeIdRoot
 } from "./api";
 
 export default class TraforamaComCampaign extends Campaign {
+
     async getCreativeListByCompany(id: string) {
         const response = await this.getCreativeList()
         return response
@@ -58,25 +60,12 @@ export default class TraforamaComCampaign extends Campaign {
         }
     }
 
-    protected async getCountries(limit:number = 1e3) {
-        const response = await this._getCountries(0,limit)
-        const total = response.meta.total
-        if(limit>=total){
-            const count = Math.ceil(total/limit)
-            const result = [...response.data]
-            for(let i = 1; count >= i; i++){
-                const data = await this._getCountries(i*limit,limit)
-                result.push(...data.data)
-            }
-            return result
-        }
-        return response.data
-    }
+
     protected async _getMinBid(offset: number = 0, limit: number = 1e3) {
         const response = await this
             .conn
             .api_conn
-            ?.get(`/v1/dsp_minimal_cpms/?filter[type_id]=10&start=${offset}&limit=${limit}`) as ResponseDspMinimalCpms
+            ?.get(`/v1/dsp_minimal_cpms/?filter[type_id]=2&start=${offset}&limit=${limit}`) as ResponseDspMinimalCpms
         if (response.data.error) {
             throw new Error(response.data.message)
         }
@@ -102,62 +91,85 @@ export default class TraforamaComCampaign extends Campaign {
         throw new Error("Method not implemented.");
     }
 
-    getStatus(): Promise<ResponceApiNetwork<StatusCampaign>> {
-        throw new Error("Method not implemented.");
+    async getStatus(): Promise<ResponceApiNetwork<StatusCampaign>> {
+        this.handlerErrNotIdCampaign()
+        const list = await this.getCreativeListByCompany(this.id.value as string)
+        const ids = list.map(value => value.id)
+        if (ids.length === 0) {
+            return new ResponceApiNetwork<StatusCampaign>({
+                                                              code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+                                                              message: 'not found '
+                                                          })
+        }
+        const getStatus = (status: string) => {
+            // @ts-ignore
+            let collection: { [id: string]: string } = this.conn.network.collections?.status;
+            return (collection.hasOwnProperty(status)) ? collection[status] : null
+        }
+        // let data: StatusCampaign | StatusCampaign[]
+        // if (ids.length > 1) {
+        //     const creativeList = await Promise.all(ids.map(id => this.getCreativeById(id)))
+        //     // @ts-ignore
+        //     data = creativeList.map(value => new StatusCampaign((value === undefined)
+        //                                                             ? null
+        //                                                             : getStatus(value.attributes.advert_state))
+        //     )
+        // } else {
+            const creative = await this.getCreativeById(ids[0])
+            const data = new StatusCampaign(getStatus(creative.attributes.advert_state))
+        // }
+
+        return new ResponceApiNetwork<StatusCampaign>({
+                                                          code: RESPONSE_CODES.SUCCESS,
+                                                          data
+                                                      })
+
+
     }
 
     updateSchedule(schedule: ScheduleCampaign): Promise<ResponceApiNetwork<Campaign>> {
         throw new Error("Method not implemented.");
     }
-    async getCountryByCode(code:string){
-        //@todo кеширование
-        const countries = await this.getCountries()
-        const [country=null] = countries.filter(value => value.attributes.iso)
-        if(country === null){
-            return null
-        }
-        return country.id
-    }
 
     async create(data: ICampaign): Promise<ResponceApiNetwork<Campaign>> {
         throw new Error("Method not implemented.");
-        // const {name, template_id, bid, country, placements_data, target_url, schedule, browser_version} = data;
-        // if (template_id.value === null) {
-        //     return new ResponceApiNetwork({
-        //                                       code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        //                                       message: 'Not set template from network',
-        //                                   });
-        // }
-        // const dataCountry = await this.getCountryByCode(country.value as string)
-        // if(dataCountry === null){
-        //     return new ResponceApiNetwork({
-        //                                       code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        //                                       message: 'Not set country from network',
-        //                                   });
-        // }
-        // const config: ParametersCampaignsCreate = {
-        //     name: name.value as string,
-        //     country_codes: [
-        //         dataCountry as string
-        //     ],
-        // }
-        // try {
-        //     const responseCompany = await this.getCompanyId(template_id.value)
-        //     const responseCreativeList = await this.getCreativeListByCompany(template_id.value)
-        //     await Promise.all(responseCreativeList
-        //                           .map(value => value.id)
-        //                           .map(value => this.getCreativeById(value)))
-        //     const response = await this.conn.api_conn?.post('/v1/campaigns/', config)
-        //
-        // } catch (e) {
-        //     return new ResponceApiNetwork({
-        //                                       code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        //                                       message: (e as Error).message,
-        //                                   });
-        // }
-        //
-        //
-        // return new ResponceApiNetwork({code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this});
+        const {name, template_id, bid, country, placements_data, target_url, schedule, browser_version} = data;
+        if (template_id.value === null) {
+            return new ResponceApiNetwork({
+                                              code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+                                              message: 'Not set template from network',
+                                          });
+        }
+        const dataCountry = this.conn.getCountryByCode()
+        if (dataCountry === null) {
+            return new ResponceApiNetwork({
+                                              code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+                                              message: 'Not set country from network',
+                                          });
+        }
+        const config: ParametersCampaignsCreate = {
+            name: name.value as string,
+            country_codes: [
+                dataCountry as string
+            ],
+        }
+        try {
+            const responseCompany = await this.getCompanyId(template_id.value)
+            const responseCreativeList = await this.getCreativeListByCompany(template_id.value)
+            await Promise.all(responseCreativeList
+                                  .map(value => value.id)
+                                  .map(value => this.getCreativeById(value)))
+            const response = await this.conn.api_conn?.post('/v1/campaigns/', config)
+
+        } catch (e) {
+            return new ResponceApiNetwork({
+                                              code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
+                                              message: (e as Error).message,
+                                          });
+        }
+
+
+        return new ResponceApiNetwork({code: RESPONSE_CODES.SUCCESS, message: 'OK', data: this});
     }
 
     fetch(): Promise<ResponceApiNetwork<Campaign>> {
@@ -195,52 +207,74 @@ export default class TraforamaComCampaign extends Campaign {
         await Promise.all(
             ids.map(value => this.unpauseCreativeById(value))
         )
-        return new ResponceApiNetwork<unknown>({
-                                                   code: RESPONSE_CODES.SUCCESS,
-                                                   message: 'OK'
-                                               })
+        return new ResponceApiNetwork({
+                                          code: RESPONSE_CODES.SUCCESS,
+                                          message: 'OK'
+                                      })
     }
 
     async stop(): Promise<ResponceApiNetwork> {
         this.handlerErrNotIdCampaign()
         const list = await this.getCreativeListByCompany(this.id.value as string)
-        const ids = list.map(value => value.id)
+        const ids = list
+            .map(value => value.id)
         await Promise.all(
             ids.map(value => this.pauseCreativeById(value))
         )
-        return new ResponceApiNetwork<unknown>({
-                                                   code: RESPONSE_CODES.SUCCESS,
-                                                   message: 'OK'
-                                               })
+        return new ResponceApiNetwork({
+                                          code: RESPONSE_CODES.SUCCESS,
+                                          message: 'OK'
+                                      })
     }
 
     async stats(date: string): Promise<ResponceApiNetwork<StatsRaw>> {
-        throw new Error("Method not implemented.");
-        // this.handlerErrNotIdCampaign()
+        this.handlerErrNotIdCampaign()
         // const response = await this.conn.api_conn?.get('/report?') as ResposeReport
-        // const response = await this.conn.api_conn?.get('/v1/responded_jobs/') as ResposeReport
-        // if (response.status == 200 && response.data.error) {
-        //     return new ResponceApiNetwork<StatsRaw>({
-        //                                                 code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
-        //                                                 message: response.data.message
-        //                                             })
-        // }
-        // const result = (response.data as Report[]).map<IStatsRaw>(value => {
-        //     return {
-        //         id_campaign: this.id.value,
-        //         report_date: value.name,
-        //         impressions: value.impressions,
-        //         site_id:,
-        //         bundle_id: "",
-        //         cost: "",
-        //         source_id: ""
-        //
-        //     }
-        // })
-        // return new ResponceApiNetwork<StatsRaw>({
-        //                                             code: RESPONSE_CODES.SUCCESS,
-        //                                             data: result.map(value => new StatsRaw(value))
-        //                                         })
+        const responseReportJob = await this.conn.api_conn?.post('/v1/responded_jobs/', {
+            args: {
+                ad_types: AdTypes.popunder,
+                campaigns_ids: [
+                    this.id.value as string
+                ],
+                finish_at: date,
+                start_at: date,
+                period: date,
+                group_by: "date",
+
+            },
+            type: "type_user_report"
+        } as RequestReportJob) as ResponseReportJob
+        if (responseReportJob.status === 400 || responseReportJob.data.error) {
+            return new ResponceApiNetwork<StatsRaw>({
+                                                        code: RESPONSE_CODES.NOT_FOUND,
+                                                        message: responseReportJob.data.message
+                                                    })
+        }
+        const id = responseReportJob.data.id
+        const responseReportJobResult = await this.conn.api_conn?.get(`/v1/responded_jobs/${id}/`) as ResponseReportJobResult
+        if (responseReportJobResult.status === 400 || responseReportJobResult.data.error) {
+            return new ResponceApiNetwork<StatsRaw>({
+                                                        code: RESPONSE_CODES.NOT_FOUND,
+                                                        message: responseReportJobResult.data.message
+                                                    })
+        }
+        const result = (responseReportJobResult.data.data.attributes.result as ReportJobResultResult[]).map<IStatsRaw>(value => {
+            const data = (value.data as ReportJobResultResultData)
+            return {
+                id_campaign: this.id.value,
+                report_date: data.,
+                impressions: value.impressions,
+                site_id: "",
+                bundle_id: "",
+                cost:,
+                source_id: ""
+
+            }
+        })
+        return new ResponceApiNetwork<StatsRaw>({
+                                                    code: RESPONSE_CODES.SUCCESS,
+                                                    data: result.map(value => new StatsRaw(value))
+                                                })
     }
 
     async minBid(): Promise<ResponceApiNetwork<BidCampaign>> {
@@ -251,7 +285,7 @@ export default class TraforamaComCampaign extends Campaign {
         const [country = null] = list
             .filter(value => value.attributes.country_id)
             .map(value => value.attributes)
-        if(country === null){
+        if (country === null) {
             return new ResponceApiNetwork({
                                               code: RESPONSE_CODES.INTERNAL_SERVER_ERROR,
                                               message: `не найдена страна код:${this.country.value}`,
@@ -265,16 +299,6 @@ export default class TraforamaComCampaign extends Campaign {
                                       });
     }
 
-    protected async _getCountries(offset: number = 0, limit: number = 1000) {
-        const response = await this
-            .conn
-            .api_conn
-            ?.get(`/v1/countries?start=${offset}&limit=${limit}`) as ResponseCountry
-        if(response.data.error){
-            throw  new Error(response.data.message)
-        }
-        return response.data as CountryRoot
-    }
 
     protected async _getCreativeList(offset: number, limit: number) {
         const response = await this.conn.api_conn?.get(`/v1/creatives/?start=${offset}&limit=${limit}`) as ResponseCreativeList
